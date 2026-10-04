@@ -1,7 +1,5 @@
-# Lavander Love — Floricultura API
-
 <p align="center">
-  <img src="docs/banner.jpg" alt="Lavander Love - Floricultura API" width="600">
+  <img src="docs/banner.png" alt="Lavander Love - Floricultura API" width="600">
 </p>
 
 # Lavander Love — Floricultura API
