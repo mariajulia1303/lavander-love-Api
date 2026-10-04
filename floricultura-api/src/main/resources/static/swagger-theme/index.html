@@ -1,0 +1,41 @@
+<!-- Swagger UI customizado da Floricultura API (tema roxo + logo).
+     Servido num path proprio (/swagger-theme/index.html) pra nao disputar com o
+     resource handler do springdoc em /swagger-ui/**. Carrega os bundles do swagger
+     por caminho absoluto /swagger-ui/... e, por cima, o nosso tema e o logo. -->
+<!DOCTYPE html>
+<html lang="pt-br">
+  <head>
+    <meta charset="UTF-8">
+    <title>Lavander Love Floricultura</title>
+    <link rel="stylesheet" type="text/css" href="/swagger-ui/swagger-ui.css" />
+    <link rel="stylesheet" type="text/css" href="/swagger-ui/index.css" />
+    <!-- nosso tema roxo, depois pra sobrescrever o padrao -->
+    <link rel="stylesheet" type="text/css" href="/swagger-theme/theme-roxo.css" />
+    <link rel="icon" type="image/png" href="/swagger-ui/favicon-32x32.png" sizes="32x32" />
+  </head>
+  <body>
+    <div id="swagger-ui"></div>
+    <script src="/swagger-ui/swagger-ui-bundle.js" charset="UTF-8"> </script>
+    <script src="/swagger-ui/swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
+    <!-- inicializa o Swagger UI apontando pro nosso /v3/api-docs -->
+    <script charset="UTF-8">
+      window.onload = function () {
+        window.ui = SwaggerUIBundle({
+          url: "/v3/api-docs",
+          dom_id: "#swagger-ui",
+          deepLinking: true,
+          presets: [
+            SwaggerUIBundle.presets.apis,
+            SwaggerUIStandalonePreset
+          ],
+          plugins: [
+            SwaggerUIBundle.plugins.DownloadUrl
+          ],
+          layout: "StandaloneLayout"
+        });
+      };
+    </script>
+    <!-- injeta o logo da floricultura no topo -->
+    <script src="/swagger-theme/logo.js" charset="UTF-8"> </script>
+  </body>
+</html>
