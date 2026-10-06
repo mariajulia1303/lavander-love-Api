@@ -325,7 +325,7 @@ Se você fizer qualquer uma das ações abaixo, o seu acesso poderá ser **bloqu
 
 Encontrou um problema, bug ou tem alguma dúvida?
 
-- **E-mail:** contato@lavanderlove.com.br *(substitua pelo e-mail real do projeto)*
+- **E-mail:** contato@lavanderlove.com.br
 - Ao reportar, informe: endpoint, método, corpo da requisição e a resposta recebida.
 
 ## Licença
