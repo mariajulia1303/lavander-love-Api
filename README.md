@@ -9,7 +9,7 @@
 ![OpenAPI](https://img.shields.io/badge/OpenAPI-3.0-blue)
 ![License](https://img.shields.io/badge/license-MIT-green)
 
-API RESTful da **Lavander Love**, uma floricultura. Projeto final do curso de APIs com Spring Boot.
+API RESTful da **Lavander Love**, uma floricultura. (Projeto final do curso de APIs com Spring Boot).
 Representa o dia a dia de uma loja de flores: clientes, endereços, produtos, categorias e pedidos.
 
 ## Sumário
