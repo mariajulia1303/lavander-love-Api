@@ -3,13 +3,13 @@ FROM maven:3.9-eclipse-temurin-25 AS build
 WORKDIR /app
 
 # Copy build descriptors first for better cache
-COPY ../../TSI-2026-02-main%20 .
+COPY pom.xml .
 
 # Download deps (optional but speeds up rebuilds)
 RUN mvn -q -DskipTests dependency:go-offline
 
 # Copy source and build
-COPY ../../TSI-2026-02-main%20 src
+COPY src ./src
 RUN mvn -DskipTests clean package
 
 
