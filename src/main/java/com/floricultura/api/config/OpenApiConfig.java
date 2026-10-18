@@ -33,13 +33,13 @@ public class OpenApiConfig {
                                 + "- Banco em memória: os dados são apagados ao reiniciar.\n"
                                 + "- Uso intensivo em produção pode ter limites ou custos extras.")
                         .version("1.0")
-                        .termsOfService("https://github.com/SEU-USUARIO/SEU-REPOSITORIO#termos-de-servi%C3%A7o")
+                        .termsOfService("https://github.com/mariajulia1303/lavander-love-Api#termos-de-servi%C3%A7o")
                         .contact(new Contact()
                                 .name("Lavander Love")
                                 .email("contato@lavanderlove.com.br"))
                         .license(new License()
                                 .name("MIT License")
-                                .url("https://opensource.org/licenses/MIT")));
+                                .url("https://github.com/mariajulia1303/lavander-love-Api#licen%C3%A7a")));
 
     }
 }

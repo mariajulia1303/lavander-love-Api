@@ -6,7 +6,7 @@ out/
 *.war
 
 # IDE settings
-.idea/
+../TSI-2026-02-main (1)/TSI-2026-02-main/.idea/
 .vscode/
 *.iml
 *.iws

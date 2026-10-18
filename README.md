@@ -325,7 +325,7 @@ Se você fizer qualquer uma das ações abaixo, o seu acesso poderá ser **bloqu
 
 Encontrou um problema, bug ou tem alguma dúvida?
 
-- **E-mail:** contato@lavanderlove.com.br *(substitua pelo e-mail real do projeto)*
+- **E-mail:** contato@lavanderlove.com.br
 - Ao reportar, informe: endpoint, método, corpo da requisição e a resposta recebida.
 
 ## Licença
@@ -334,10 +334,10 @@ Este projeto está sob a **Licença MIT**.
 
 A MIT é uma das licenças de software livre mais permissivas. Em resumo, qualquer pessoa pode:
 
-- ✅ usar o software, inclusive em projetos comerciais;
-- ✅ copiar, baixar e modificar o código;
-- ✅ distribuir e até vender cópias ou versões modificadas;
-- ✅ incluir o código em projetos próprios, inclusive de código fechado.
+-  usar o software, inclusive em projetos comerciais;
+-  copiar, baixar e modificar o código;
+-  distribuir e até vender cópias ou versões modificadas;
+-  incluir o código em projetos próprios, inclusive de código fechado.
 
 Em troca, existe **uma única exigência**: manter o aviso de copyright e o texto da licença em todas
 as cópias ou partes substanciais do software. O software é fornecido **sem garantia** e os autores

@@ -3,7 +3,7 @@ package com.floricultura.api;
 import org.springframework.boot.SpringApplication;
 import org.springframework.boot.autoconfigure.SpringBootApplication;
 
-// ponto de entrada da aplicacao, nada de especial aqui
+// ponto de entrada da aplicacao
 @SpringBootApplication
 public class FloriculturaApplication {
 
