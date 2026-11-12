@@ -16,11 +16,18 @@
     <div id="swagger-ui"></div>
     <script src="/swagger-ui/swagger-ui-bundle.js" charset="UTF-8"> </script>
     <script src="/swagger-ui/swagger-ui-standalone-preset.js" charset="UTF-8"> </script>
-    <!-- inicializa o Swagger UI apontando pro nosso /v3/api-docs -->
+    <!-- inicializa o Swagger UI apontando pros grupos /v3/api-docs/v1 e /v3/api-docs/v2 -->
     <script charset="UTF-8">
       window.onload = function () {
         window.ui = SwaggerUIBundle({
-          url: "/v3/api-docs",
+          // um documento por versao da API (grupos do springdoc); troca no seletor do topo
+          urls: [
+            { url: "/v3/api-docs/v1", name: "v1" },
+            { url: "/v3/api-docs/v2", name: "v2" }
+          ],
+          "urls.primaryName": "v1",
+          // guarda a chave do "Authorize" mesmo recarregando a pagina
+          persistAuthorization: true,
           dom_id: "#swagger-ui",
           deepLinking: true,
           presets: [

@@ -5,6 +5,7 @@ import java.net.URI;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
@@ -20,11 +21,15 @@ import org.springframework.web.bind.annotation.RequestParam;
 import org.springframework.web.bind.annotation.RestController;
 
 import com.floricultura.api.assembler.ProdutoAssembler;
+import com.floricultura.api.assembler.ProdutoV2Assembler;
 import com.floricultura.api.dto.ProdutoRequest;
+import com.floricultura.api.dto.ProdutoV2Response;
 import com.floricultura.api.entity.Produto;
 import com.floricultura.api.service.ProdutoService;
+import com.floricultura.api.versioning.VersaoApi;
 
 import io.swagger.v3.oas.annotations.Operation;
+import io.swagger.v3.oas.annotations.Parameter;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -39,12 +44,14 @@ public class ProdutoController {
 
     private final ProdutoService produtoService;
     private final ProdutoAssembler assembler;
+    private final ProdutoV2Assembler assemblerV2;
     private final PagedResourcesAssembler<Produto> pagedAssembler;
 
     public ProdutoController(ProdutoService produtoService, ProdutoAssembler assembler,
-            PagedResourcesAssembler<Produto> pagedAssembler) {
+            ProdutoV2Assembler assemblerV2, PagedResourcesAssembler<Produto> pagedAssembler) {
         this.produtoService = produtoService;
         this.assembler = assembler;
+        this.assemblerV2 = assemblerV2;
         this.pagedAssembler = pagedAssembler;
     }
 
@@ -62,8 +69,12 @@ public class ProdutoController {
         return ResponseEntity.created(location).body(model);
     }
 
+    // ---------------- VERSAO 1 (padrao: sem header ou X-API-Version: 1) ----------------
+
     @GetMapping("/{id}")
-    @Operation(summary = "Busca um produto pelo id")
+    @VersaoApi(1)
+    @Operation(summary = "Busca um produto pelo id (v1)",
+            description = "Versao 1 (padrao). Devolve o produto com a categoria completa.")
     @ApiResponses({
             @ApiResponse(responseCode = "200", description = "Produto encontrado"),
             @ApiResponse(responseCode = "404", description = "Produto nao encontrado")
@@ -73,11 +84,64 @@ public class ProdutoController {
     }
 
     @GetMapping
-    @Operation(summary = "Lista os produtos de forma paginada")
+    @VersaoApi(1)
+    @Operation(summary = "Lista os produtos de forma paginada (v1)",
+            description = "Versao 1 (padrao). Itens em `_embedded.produtoList`.")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista paginada de produtos"))
-    public PagedModel<EntityModel<Produto>> listar(Pageable pageable) {
+    public PagedModel<EntityModel<Produto>> listar(@ParameterObject Pageable pageable) {
         Page<Produto> page = produtoService.findAll(pageable);
         return pagedAssembler.toModel(page, assembler);
+    }
+
+    // ---------------- VERSAO 2 (header X-API-Version: 2) ----------------
+    // o "headers" no mapeamento faz o Spring escolher este metodo quando o header vier com 2.
+
+    @GetMapping(value = "/{id}", headers = "X-API-Version=2")
+    @VersaoApi(2)
+    @Operation(summary = "Busca um produto pelo id (v2)",
+            description = "Versao 2 (envie `X-API-Version: 2`). Mudancas: categoria resumida (id e nome), "
+                    + "novos campos `precoFormatado` (ex: \"R$ 89,90\") e `disponivel` (tem estoque?).")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Produto encontrado (formato v2)"),
+            @ApiResponse(responseCode = "404", description = "Produto nao encontrado")
+    })
+    public EntityModel<ProdutoV2Response> buscarV2(@PathVariable Long id) {
+        return assemblerV2.toModel(produtoService.findById(id));
+    }
+
+    @GetMapping(headers = "X-API-Version=2")
+    @VersaoApi(2)
+    @Operation(summary = "Lista os produtos de forma paginada, com filtros (v2)",
+            description = "Versao 2 (envie `X-API-Version: 2`). Itens em `_embedded.produtos`, no formato ProdutoV2. "
+                    + "Novidade da v2: filtros opcionais e combinaveis direto na listagem "
+                    + "(`nome`, `categoriaId`, `precoMin`, `precoMax`, `disponivel`). "
+                    + "Ex.: `?categoriaId=1&precoMax=100&disponivel=true&sort=preco,asc`.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "200", description = "Lista paginada de produtos (formato v2)"),
+            @ApiResponse(responseCode = "422", description = "Filtro invalido (ex: precoMin maior que precoMax)")
+    })
+    public PagedModel<EntityModel<ProdutoV2Response>> listarV2(
+            @Parameter(description = "Parte do nome (sem diferenciar maiusculas)", example = "rosa")
+            @RequestParam(required = false) String nome,
+            @Parameter(description = "Id da categoria", example = "1")
+            @RequestParam(required = false) Long categoriaId,
+            @Parameter(description = "Preco minimo", example = "20.00")
+            @RequestParam(required = false) BigDecimal precoMin,
+            @Parameter(description = "Preco maximo", example = "150.00")
+            @RequestParam(required = false) BigDecimal precoMax,
+            @Parameter(description = "true = so com estoque; false = so esgotados")
+            @RequestParam(required = false) Boolean disponivel,
+            @ParameterObject Pageable pageable) {
+        if ((precoMin != null && precoMin.signum() < 0) || (precoMax != null && precoMax.signum() < 0)) {
+            throw new ConstraintViolationException("precoMin e precoMax nao podem ser negativos",
+                    java.util.Collections.emptySet());
+        }
+        if (precoMin != null && precoMax != null && precoMin.compareTo(precoMax) > 0) {
+            throw new ConstraintViolationException("precoMin nao pode ser maior que precoMax",
+                    java.util.Collections.emptySet());
+        }
+        Page<Produto> page = produtoService.filtrar(nome, categoriaId, precoMin, precoMax, disponivel, pageable);
+        return pagedAssembler.toModel(page, assemblerV2);
     }
 
     @GetMapping("/search")
@@ -91,7 +155,7 @@ public class ProdutoController {
             @RequestParam(required = false) BigDecimal precoMin,
             @RequestParam(required = false) BigDecimal precoMax,
             @RequestParam(required = false) String nome,
-            Pageable pageable) {
+            @ParameterObject Pageable pageable) {
         Page<Produto> page;
         if (categoriaId != null) {
             page = produtoService.findByCategoria(categoriaId, pageable);

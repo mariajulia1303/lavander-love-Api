@@ -13,7 +13,7 @@
 
     <groupId>com.floricultura</groupId>
     <artifactId>floricultura-api</artifactId>
-    <version>0.0.1-SNAPSHOT</version>
+    <version>2.1.0</version>
     <name>floricultura-api</name>
     <description>API RESTful de uma floricultura</description>
 

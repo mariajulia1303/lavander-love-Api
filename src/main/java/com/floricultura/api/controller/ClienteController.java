@@ -4,6 +4,7 @@ import java.net.URI;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
@@ -73,7 +74,7 @@ public class ClienteController {
     @GetMapping
     @Operation(summary = "Lista os clientes de forma paginada")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista paginada de clientes"))
-    public PagedModel<EntityModel<Cliente>> listar(Pageable pageable) {
+    public PagedModel<EntityModel<Cliente>> listar(@ParameterObject Pageable pageable) {
         Page<Cliente> page = clienteService.findAll(pageable);
         return pagedAssembler.toModel(page, assembler);
     }
@@ -81,7 +82,7 @@ public class ClienteController {
     @GetMapping("/search")
     @Operation(summary = "Busca clientes por nome (consulta personalizada)")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista paginada filtrada por nome"))
-    public PagedModel<EntityModel<Cliente>> buscarPorNome(@RequestParam String nome, Pageable pageable) {
+    public PagedModel<EntityModel<Cliente>> buscarPorNome(@RequestParam String nome, @ParameterObject Pageable pageable) {
         Page<Cliente> page = clienteService.search(nome, pageable);
         return pagedAssembler.toModel(page, assembler);
     }

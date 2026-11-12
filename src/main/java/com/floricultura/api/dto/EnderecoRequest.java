@@ -7,15 +7,19 @@ import jakarta.validation.constraints.Size;
 public class EnderecoRequest {
 
     @NotBlank
+    @Size(min = 3, max = 120, message = "deve ter entre 3 e 120 caracteres")
     private String logradouro;
 
     // numero pode ser "S/N", entao nao exijo nada aqui
+    @Size(max = 10, message = "deve ter no maximo 10 caracteres")
     private String numero;
 
     @NotBlank
+    @Size(min = 2, max = 60, message = "deve ter entre 2 e 60 caracteres")
     private String bairro;
 
     @NotBlank
+    @Size(min = 2, max = 60, message = "deve ter entre 2 e 60 caracteres")
     private String cidade;
 
     @NotBlank
@@ -23,6 +27,7 @@ public class EnderecoRequest {
     private String uf;
 
     @NotBlank
+    @Size(min = 8, max = 9, message = "deve ter entre 8 e 9 caracteres")
     private String cep;
 
     public String getLogradouro() {

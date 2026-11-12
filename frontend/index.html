@@ -1,0 +1,382 @@
+<!DOCTYPE html>
+<html lang="pt-br">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1">
+  <title>Lavander Love — Painel</title>
+  <link rel="icon" href="logo.png">
+  <link rel="stylesheet" href="styles.css">
+</head>
+<body>
+
+<header class="topo">
+  <div class="marca">
+    <img src="logo.png" alt="Logo Lavander Love" class="logo">
+    <div>
+      <h1>Lavander Love</h1>
+      <small>Painel da floricultura · consome a API REST</small>
+    </div>
+  </div>
+
+  <!-- configuracao da conexao com a API -->
+  <form id="form-config" class="config">
+    <label>URL da API
+      <input id="cfg-base" type="url" placeholder="http://localhost:8080" required>
+    </label>
+    <label>Chave de API (X-API-Key)
+      <input id="cfg-key" type="password" placeholder="ll_..." autocomplete="off">
+    </label>
+    <label>Versão (X-API-Version)
+      <select id="cfg-versao">
+        <option value="1">1 (padrão)</option>
+        <option value="2">2</option>
+      </select>
+    </label>
+    <button type="submit">Salvar</button>
+    <div class="atalhos">
+      Chaves de demonstração:
+      <button type="button" class="link" data-demo="ll_admin_dev_123">ADMIN</button>
+      <button type="button" class="link" data-demo="ll_escrita_dev_123">ESCRITA</button>
+      <button type="button" class="link" data-demo="ll_leitura_dev_123">LEITURA</button>
+      <button type="button" class="link" data-demo="">sem chave</button>
+    </div>
+  </form>
+
+  <div class="status">
+    <span id="st-chave" class="chip">Sem chave</span>
+    <span id="st-rate" class="chip">Rate limit: —</span>
+    <span id="st-ultima" class="chip">Última resposta: —</span>
+  </div>
+</header>
+
+<nav class="abas">
+  <button data-aba="conta">Minha conta</button>
+  <button data-aba="produtos" class="ativa">Produtos</button>
+  <button data-aba="categorias">Categorias</button>
+  <button data-aba="clientes">Clientes</button>
+  <button data-aba="pedidos">Pedidos</button>
+  <button data-aba="chaves">Chaves de API</button>
+  <button data-aba="testes">Testes da Parte 2</button>
+  <button data-aba="log">Log</button>
+</nav>
+
+<div id="aviso" class="aviso escondido"></div>
+
+<main>
+
+  <!-- ===================== MINHA CONTA (login + chave pessoal) ===================== -->
+  <section id="aba-conta" class="aba escondido">
+    <h2>Minha conta</h2>
+
+    <!-- deslogado: entrar ou criar conta -->
+    <div id="conta-fora" class="conta-grade">
+      <form id="login-form" class="cartao">
+        <h3>Entrar</h3>
+        <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="username"></label>
+        <label>Senha <input name="senha" type="password" required maxlength="72" autocomplete="current-password"></label>
+        <div class="acoes"><button>Entrar</button></div>
+        <p class="dica">Depois de entrar você gera a sua chave de API pessoal.</p>
+      </form>
+
+      <form id="cadastro-form" class="cartao">
+        <h3>Criar conta</h3>
+        <label>Nome <input name="nome" required minlength="3" maxlength="100" autocomplete="name"></label>
+        <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="email"></label>
+        <label>Senha <input name="senha" type="password" required minlength="6" maxlength="72" autocomplete="new-password"></label>
+        <div class="acoes"><button>Criar conta</button></div>
+        <p class="dica">A senha fica guardada só como hash: nem quem acessa o banco consegue ler.</p>
+      </form>
+    </div>
+
+    <!-- logado: dados da conta e a chave -->
+    <div id="conta-dentro" class="conta-grade escondido">
+      <div class="cartao">
+        <h3>Olá, <span id="conta-nome"></span></h3>
+        <p class="dica" id="conta-email"></p>
+        <div id="conta-chave"></div>
+        <div class="acoes">
+          <button type="button" id="conta-gerar">Criar minha chave</button>
+          <button type="button" id="conta-sair" class="secundario">Sair</button>
+        </div>
+        <div id="conta-nova" class="idem escondido">
+          <p><strong>Copie agora!</strong> Por segurança a chave não aparece de novo:</p>
+          <code id="conta-nova-valor" class="chave"></code>
+          <div class="acoes">
+            <button type="button" id="conta-copiar" class="secundario">Copiar</button>
+            <button type="button" id="conta-usar">Usar esta chave no painel</button>
+          </div>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Como funciona</h3>
+        <ol class="passos">
+          <li>Você entra com e-mail e senha e a API devolve um <b>token de sessão</b> (vale 60 min).</li>
+          <li>Com esse token você gera a sua <b>chave de API</b>: uma por pessoa, nível ESCRITA, plano BASICO.</li>
+          <li>Clique em <b>Usar esta chave no painel</b>: ela vai no header <code>X-API-Key</code> de todas as requisições.</li>
+          <li>Gerar de novo troca o valor da chave (a anterior para de funcionar na hora).</li>
+        </ol>
+        <p class="dica">O banco é em memória: se a API for reiniciada, contas e chaves somem. Aí é só criar a conta de novo.</p>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== PRODUTOS ===================== -->
+  <section id="aba-produtos" class="aba">
+    <div class="cabecalho">
+      <h2>Produtos <small id="prod-versao"></small></h2>
+      <form id="prod-busca" class="busca">
+        <input name="nome" placeholder="Buscar por nome..." maxlength="100">
+        <input name="precoMin" type="number" step="0.01" min="0" placeholder="Preço mín." data-v2 class="escondido curto">
+        <input name="precoMax" type="number" step="0.01" min="0" placeholder="Preço máx." data-v2 class="escondido curto">
+        <select name="disponivel" data-v2 class="escondido curto">
+          <option value="">Estoque: todos</option>
+          <option value="true">Disponíveis</option>
+          <option value="false">Esgotados</option>
+        </select>
+        <button>Buscar</button>
+        <button type="button" data-limpar class="secundario">Limpar</button>
+      </form>
+    </div>
+    <div class="grade">
+      <div>
+        <table>
+          <thead id="prod-thead"></thead>
+          <tbody id="prod-tbody"></tbody>
+        </table>
+        <div id="prod-pag" class="paginacao"></div>
+      </div>
+      <form id="prod-form" class="cartao">
+        <h3>Novo produto</h3>
+        <input type="hidden" name="id">
+        <label>Nome <input name="nome" required minlength="2" maxlength="100"></label>
+        <label>Preço (R$) <input name="preco" type="number" step="0.01" min="0.01" max="999999.99" required></label>
+        <label>Estoque <input name="estoque" type="number" min="0" max="999999" required></label>
+        <label>Categoria <select name="categoriaId" required></select></label>
+        <div class="acoes">
+          <button>Salvar</button>
+          <button type="button" data-cancelar class="secundario">Cancelar</button>
+        </div>
+        <p class="dica">Criar/editar exige chave ESCRITA. Excluir exige ADMIN.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== CATEGORIAS ===================== -->
+  <section id="aba-categorias" class="aba escondido">
+    <div class="cabecalho"><h2>Categorias</h2></div>
+    <div class="grade">
+      <div>
+        <table>
+          <thead><tr><th>#</th><th>Nome</th><th>Descrição</th><th></th></tr></thead>
+          <tbody id="cat-tbody"></tbody>
+        </table>
+        <div id="cat-pag" class="paginacao"></div>
+      </div>
+      <form id="cat-form" class="cartao">
+        <h3>Nova categoria</h3>
+        <input type="hidden" name="id">
+        <label>Nome <input name="nome" required minlength="2" maxlength="60"></label>
+        <label>Descrição <textarea name="descricao" rows="3" maxlength="255"></textarea></label>
+        <div class="acoes">
+          <button>Salvar</button>
+          <button type="button" data-cancelar class="secundario">Cancelar</button>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== CLIENTES ===================== -->
+  <section id="aba-clientes" class="aba escondido">
+    <div class="cabecalho"><h2>Clientes</h2></div>
+    <div class="grade">
+      <div>
+        <table>
+          <thead><tr><th>#</th><th>Nome</th><th>E-mail</th><th>Telefone</th><th>Cidade</th><th></th></tr></thead>
+          <tbody id="cli-tbody"></tbody>
+        </table>
+        <div id="cli-pag" class="paginacao"></div>
+      </div>
+      <form id="cli-form" class="cartao">
+        <h3>Novo cliente</h3>
+        <input type="hidden" name="id">
+        <label>Nome <input name="nome" required minlength="3" maxlength="100"></label>
+        <label>E-mail <input name="email" type="email" required maxlength="120"></label>
+        <label>Telefone <input name="telefone" type="tel" required minlength="8" maxlength="20" placeholder="11999990000"></label>
+        <fieldset>
+          <legend>Endereço</legend>
+          <label>Logradouro <input name="logradouro" required minlength="3" maxlength="120"></label>
+          <div class="linha">
+            <label>Número <input name="numero" maxlength="10"></label>
+            <label>Bairro <input name="bairro" required minlength="2" maxlength="60"></label>
+          </div>
+          <div class="linha">
+            <label>Cidade <input name="cidade" required minlength="2" maxlength="60"></label>
+            <label>UF <input name="uf" maxlength="2" minlength="2" required></label>
+          </div>
+          <label>CEP <input name="cep" required minlength="8" maxlength="9" placeholder="01001000"></label>
+        </fieldset>
+        <div class="acoes">
+          <button>Salvar</button>
+          <button type="button" data-cancelar class="secundario">Cancelar</button>
+        </div>
+        <p class="dica">Clientes têm dados pessoais: até a listagem exige chave (LEITURA).</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== PEDIDOS ===================== -->
+  <section id="aba-pedidos" class="aba escondido">
+    <div class="cabecalho">
+      <h2>Pedidos</h2>
+      <form id="ped-filtro" class="busca">
+        <select name="status"><option value="">Todos os status</option></select>
+        <button>Filtrar</button>
+      </form>
+    </div>
+    <div class="grade">
+      <div>
+        <table>
+          <thead><tr><th>#</th><th>Cliente</th><th>Produtos</th><th>Total</th><th>Status</th><th></th></tr></thead>
+          <tbody id="ped-tbody"></tbody>
+        </table>
+        <div id="ped-pag" class="paginacao"></div>
+      </div>
+      <form id="ped-form" class="cartao">
+        <h3>Novo pedido</h3>
+        <label>Cliente <select name="clienteId" required></select></label>
+        <div class="rotulo">Produtos</div>
+        <div id="ped-produtos" class="checks"></div>
+        <label>Status <select name="status" required></select></label>
+        <div class="acoes"><button>Criar pedido</button></div>
+        <div id="ped-idem" class="idem escondido">
+          <p>Pedido criado com <code>X-Idempotency-Key</code>:<br><code id="ped-idem-chave"></code></p>
+          <button type="button" id="ped-reenviar" class="secundario">Reenviar com a mesma chave</button>
+          <p class="dica">Simula um "clique duplo" ou uma nova tentativa depois de uma falha de rede: a API
+            devolve o mesmo pedido em vez de criar outro.</p>
+        </div>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== CHAVES ===================== -->
+  <section id="aba-chaves" class="aba escondido">
+    <div class="cabecalho"><h2>Chaves de API</h2></div>
+    <div class="grade">
+      <div>
+        <table>
+          <thead><tr><th>#</th><th>Nome</th><th>Prefixo</th><th>Nível</th><th>Plano</th><th>Ativa</th><th>Último uso</th><th></th></tr></thead>
+          <tbody id="key-tbody"></tbody>
+        </table>
+        <div id="key-pag" class="paginacao"></div>
+      </div>
+      <form id="key-form" class="cartao">
+        <h3>Gerar chave</h3>
+        <label>Nome <input name="nome" minlength="3" maxlength="80" required placeholder="App do caixa"></label>
+        <label>Nível
+          <select name="nivel">
+            <option>LEITURA</option><option>ESCRITA</option><option>ADMIN</option>
+          </select>
+        </label>
+        <label>Plano (rate limit)
+          <select name="plano">
+            <option value="GRATUITO">GRATUITO · 8 de uma vez, 20/min</option>
+            <option value="BASICO">BASICO · 20 de uma vez, 60/min</option>
+            <option value="PROFISSIONAL">PROFISSIONAL · 50 de uma vez, 240/min</option>
+          </select>
+        </label>
+        <div class="acoes"><button>Gerar</button></div>
+        <div id="key-nova" class="idem escondido">
+          <p><strong>Copie agora!</strong> A chave não será mostrada de novo:</p>
+          <code id="key-nova-valor" class="chave"></code>
+          <div class="acoes">
+            <button type="button" id="key-copiar" class="secundario">Copiar</button>
+            <button type="button" id="key-usar" class="secundario">Usar esta chave</button>
+          </div>
+        </div>
+        <p class="dica">Gerenciar chaves exige nível ADMIN. O nível diz <b>o que</b> a chave pode fazer; o plano diz
+          <b>quantas</b> requisições ela pode fazer. As chaves de demonstração são do plano GRATUITO.</p>
+      </form>
+    </div>
+  </section>
+
+  <!-- ===================== TESTES ===================== -->
+  <section id="aba-testes" class="aba escondido">
+    <h2>Testes dos recursos da Parte 2</h2>
+    <div class="testes">
+      <div class="cartao">
+        <h3>Rate limit (429)</h3>
+        <p>Dispara várias requisições seguidas em <code>GET /categorias</code>. O algoritmo é <b>token bucket</b>:
+          cada requisição gasta uma ficha do balde, que recarrega aos poucos. Sem chave o balde é do IP
+          (5 fichas, recarga de 15/min); com chave, do plano dela (GRATUITO: 8 fichas, 20/min).
+          Balde vazio dá <b>429</b> com <code>Retry-After</code>. Quem insiste depois do 429 (5 negadas seguidas)
+          leva uma <b>penalidade</b> de 30 s.</p>
+        <label>Quantidade <input id="rl-qtd" type="number" value="12" min="1" max="100"></label>
+        <button id="rl-btn">Disparar</button>
+        <pre id="rl-saida" class="saida"></pre>
+      </div>
+
+      <div class="cartao">
+        <h3>Política de limites</h3>
+        <p>Consulta <code>GET /limites</code> (público): limites de cada plano, do acesso anônimo e global, a
+          penalidade e quantas fichas <b>você</b> ainda tem agora.</p>
+        <button id="lim-btn">Consultar</button>
+        <pre id="lim-saida" class="saida"></pre>
+      </div>
+
+      <div class="cartao">
+        <h3>Idempotência</h3>
+        <p>Envia o mesmo <code>POST /categorias</code> duas vezes com a mesma <code>X-Idempotency-Key</code>
+          e depois com o corpo diferente. Exige chave ESCRITA.</p>
+        <button id="idem-btn">Executar</button>
+        <pre id="idem-saida" class="saida"></pre>
+      </div>
+
+      <div class="cartao">
+        <h3>Versionamento</h3>
+        <p>Busca o mesmo produto com <code>X-API-Version: 1</code> e <code>2</code>. Na v2 a resposta é mais enxuta
+          (<code>precoFormatado</code>, <code>disponivel</code>, categoria resumida) e a listagem ganha filtros combináveis
+          (troque a versão no topo e veja a busca da aba Produtos).</p>
+        <label>Id do produto <input id="ver-id" type="number" value="1" min="1"></label>
+        <button id="ver-btn">Comparar</button>
+        <div class="lado-a-lado">
+          <pre id="ver-v1" class="saida"></pre>
+          <pre id="ver-v2" class="saida"></pre>
+        </div>
+      </div>
+
+      <div class="cartao">
+        <h3>Chave de API e níveis</h3>
+        <p>Tenta operações com chaves diferentes: sem chave (401), chave inválida (401), LEITURA tentando
+          excluir (403) e LEITURA listando clientes (200).</p>
+        <button id="sec-btn">Executar</button>
+        <pre id="sec-saida" class="saida"></pre>
+      </div>
+
+      <div class="cartao">
+        <h3>CORS</h3>
+        <p>Esta página está na origem <code id="cors-origem"></code> e a API em <code id="cors-api"></code>.
+          Como são origens diferentes, o navegador só deixa a página ler as respostas porque a API libera essa
+          origem em <code>lavander.cors.allowed-origins</code>.</p>
+        <p>Pra ver o bloqueio: abra esta página por outra porta (ex.: <code>python -m http.server 9000</code>)
+          e clique abaixo. O navegador barra a resposta (veja o console, F12).</p>
+        <button id="cors-btn">Testar acesso</button>
+        <pre id="cors-saida" class="saida"></pre>
+      </div>
+    </div>
+  </section>
+
+  <!-- ===================== LOG ===================== -->
+  <section id="aba-log" class="aba escondido">
+    <div class="cabecalho">
+      <h2>Log de requisições</h2>
+      <button id="log-limpar" class="secundario">Limpar</button>
+    </div>
+    <div id="log-lista"></div>
+  </section>
+
+</main>
+
+<script src="app.js"></script>
+</body>
+</html>

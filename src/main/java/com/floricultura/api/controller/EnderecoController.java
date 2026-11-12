@@ -4,6 +4,7 @@ import java.net.URI;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springdoc.core.annotations.ParameterObject;
 import org.springframework.data.web.PagedResourcesAssembler;
 import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.PagedModel;
@@ -72,7 +73,7 @@ public class EnderecoController {
     @GetMapping
     @Operation(summary = "Lista os enderecos de forma paginada")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista paginada de enderecos"))
-    public PagedModel<EntityModel<Endereco>> listar(Pageable pageable) {
+    public PagedModel<EntityModel<Endereco>> listar(@ParameterObject Pageable pageable) {
         Page<Endereco> page = enderecoService.findAll(pageable);
         return pagedAssembler.toModel(page, assembler);
     }
@@ -80,7 +81,7 @@ public class EnderecoController {
     @GetMapping("/search")
     @Operation(summary = "Busca enderecos por cidade (consulta personalizada)")
     @ApiResponses(@ApiResponse(responseCode = "200", description = "Lista paginada filtrada por cidade"))
-    public PagedModel<EntityModel<Endereco>> buscarPorCidade(@RequestParam String cidade, Pageable pageable) {
+    public PagedModel<EntityModel<Endereco>> buscarPorCidade(@RequestParam String cidade, @ParameterObject Pageable pageable) {
         Page<Endereco> page = enderecoService.findByCidade(cidade, pageable);
         return pagedAssembler.toModel(page, assembler);
     }

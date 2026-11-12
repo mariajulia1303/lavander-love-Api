@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
+import org.springframework.data.jpa.domain.Specification;
 import org.springframework.stereotype.Service;
 
 import com.floricultura.api.dto.ProdutoRequest;
@@ -56,6 +57,31 @@ public class ProdutoService {
 
     public Page<Produto> search(String nome, Pageable pageable) {
         return produtoRepository.findByNomeContainingIgnoreCase(nome, pageable);
+    }
+
+    // listagem da v2: todos os filtros sao opcionais e podem ser combinados entre si
+    public Page<Produto> filtrar(String nome, Long categoriaId, BigDecimal precoMin, BigDecimal precoMax,
+            Boolean disponivel, Pageable pageable) {
+        Specification<Produto> spec = (root, query, cb) -> cb.conjunction();
+        if (nome != null && !nome.isBlank()) {
+            String termo = "%" + nome.trim().toLowerCase() + "%";
+            spec = spec.and((root, query, cb) -> cb.like(cb.lower(root.get("nome")), termo));
+        }
+        if (categoriaId != null) {
+            spec = spec.and((root, query, cb) -> cb.equal(root.get("categoria").get("id"), categoriaId));
+        }
+        if (precoMin != null) {
+            spec = spec.and((root, query, cb) -> cb.greaterThanOrEqualTo(root.get("preco"), precoMin));
+        }
+        if (precoMax != null) {
+            spec = spec.and((root, query, cb) -> cb.lessThanOrEqualTo(root.get("preco"), precoMax));
+        }
+        if (disponivel != null) {
+            spec = spec.and((root, query, cb) -> disponivel
+                    ? cb.greaterThan(root.get("estoque"), 0)
+                    : cb.equal(root.get("estoque"), 0));
+        }
+        return produtoRepository.findAll(spec, pageable);
     }
 
     public Produto update(Long id, ProdutoRequest req) {

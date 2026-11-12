@@ -4,6 +4,7 @@ import java.math.BigDecimal;
 
 import jakarta.validation.constraints.NotNull;
 import jakarta.validation.constraints.NotBlank;
+import jakarta.validation.constraints.Size;
 import jakarta.validation.constraints.Positive;
 import jakarta.validation.constraints.PositiveOrZero;
 
@@ -11,6 +12,7 @@ import jakarta.validation.constraints.PositiveOrZero;
 public class ProdutoRequest {
 
     @NotBlank
+    @Size(min = 2, max = 100, message = "deve ter entre 2 e 100 caracteres")
     private String nome;
 
     @NotNull

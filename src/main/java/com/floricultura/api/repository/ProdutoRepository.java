@@ -5,10 +5,12 @@ import java.math.BigDecimal;
 import org.springframework.data.domain.Page;
 import org.springframework.data.domain.Pageable;
 import org.springframework.data.jpa.repository.JpaRepository;
+import org.springframework.data.jpa.repository.JpaSpecificationExecutor;
 
 import com.floricultura.api.entity.Produto;
 
-public interface ProdutoRepository extends JpaRepository<Produto, Long> {
+// JpaSpecificationExecutor: permite montar filtros combinados (usado na listagem v2)
+public interface ProdutoRepository extends JpaRepository<Produto, Long>, JpaSpecificationExecutor<Produto> {
 
     // todos os produtos de uma categoria
     Page<Produto> findByCategoriaId(Long categoriaId, Pageable pageable);
