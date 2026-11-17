@@ -12,6 +12,8 @@ import org.springframework.web.cors.CorsConfiguration;
 import org.springframework.web.cors.UrlBasedCorsConfigurationSource;
 import org.springframework.web.filter.CorsFilter;
 
+import jakarta.servlet.http.HttpServletRequest;
+
 import com.floricultura.api.web.FilterOrder;
 
 // politica de CORS da API.
@@ -47,8 +49,44 @@ public class CorsConfig {
         UrlBasedCorsConfigurationSource source = new UrlBasedCorsConfigurationSource();
         source.registerCorsConfiguration("/**", config);
 
-        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsFilter(source));
+        FilterRegistrationBean<CorsFilter> bean = new FilterRegistrationBean<>(new CorsMesmaOrigemFilter(source));
         bean.setOrder(FilterOrder.CORS);
         return bean;
+    }
+
+    // quando o front e aberto pela propria API (ex.: https://lavander-love-api.onrender.com/), o navegador
+    // manda o header Origin no POST do login mesmo sendo o MESMO endereco. atras do proxy do Render a
+    // requisicao chega como http e em outra porta, entao o CorsFilter achava que era outra origem e
+    // respondia 403 "Invalid CORS request". aqui: se a Origin e o proprio endereco publico da API
+    // (montado com os headers X-Forwarded-* que o Render envia), nao e CORS e o filtro nao se aplica.
+    static class CorsMesmaOrigemFilter extends CorsFilter {
+
+        CorsMesmaOrigemFilter(UrlBasedCorsConfigurationSource source) {
+            super(source);
+        }
+
+        @Override
+        protected boolean shouldNotFilter(HttpServletRequest request) {
+            String origin = request.getHeader("Origin");
+            if (origin == null) {
+                return false;
+            }
+            String proto = primeiro(request.getHeader("X-Forwarded-Proto"), request.getScheme());
+            String host = primeiro(request.getHeader("X-Forwarded-Host"), request.getHeader("Host"));
+            if (host == null) {
+                return false;
+            }
+            String propria = proto + "://" + host;
+            return origin.equalsIgnoreCase(propria)
+                    || origin.equalsIgnoreCase(propria.replace(":443", "").replace(":80", ""));
+        }
+
+        // X-Forwarded-* pode vir como "https,http" quando passa por mais de um proxy: vale o primeiro
+        private static String primeiro(String encaminhado, String padrao) {
+            if (encaminhado == null || encaminhado.isBlank()) {
+                return padrao;
+            }
+            return encaminhado.split(",")[0].trim();
+        }
     }
 }

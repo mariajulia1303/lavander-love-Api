@@ -17,6 +17,8 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - Swagger: todos os parâmetros (id, filtros, paginação e headers) ganharam descrição em português,
   exemplo e o limite escrito por extenso (ex.: "Texto de 1 a 100 caracteres", "Número inteiro, a partir de 1").
 - Swagger: os campos dos corpos mostram o limite de caracteres/valor na descrição.
+- Corrigido: login pelo front aberto no Render dava **403** ("Invalid CORS request"). Atrás do proxy do Render
+  a API não reconhecia o próprio endereço como mesma origem; agora requisições da mesma origem não passam pelo CORS.
 - Deploy: o front-end agora vai junto com a API (pom.xml copia `frontend/` para `static/` e o Dockerfile
   inclui a pasta). Abrir o endereço da API (ex.: `https://lavander-love-api.onrender.com/`) mostra o painel,
   que já usa a própria API, sem precisar configurar URL nem CORS.
