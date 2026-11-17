@@ -17,8 +17,15 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - Swagger: todos os parâmetros (id, filtros, paginação e headers) ganharam descrição em português,
   exemplo e o limite escrito por extenso (ex.: "Texto de 1 a 100 caracteres", "Número inteiro, a partir de 1").
 - Swagger: os campos dos corpos mostram o limite de caracteres/valor na descrição.
+- Swagger: as respostas e os corpos mostram exemplos reais (os mesmos do `data.sql`, ex.: "Buquês",
+  "Buquê de Rosas Vermelhas", 89.90) no lugar de "string" e 0, e o `_links` mostra um link `self` de verdade.
 - Swagger: o botão **Authorize** ganhou o campo **LoginToken** (`X-Session-Token`). O token do login é
   informado uma vez só e vale para `/auth/me`, `/auth/minha-chave` e `/auth/logout`.
+- Swagger (tema roxo): tabela de parâmetros com a coluna do nome em largura fixa; o nome não quebra mais em
+  duas linhas e o tipo (`integer($int64)`) não invade a descrição.
+- Front-end: botão **Copiar minha chave** ao lado de "Excluir minha chave" (o valor fica salvo no navegador).
+- Nova rota `DELETE /auth/minha-chave`: a pessoa logada exclui a própria chave de API (botão **Excluir minha chave**
+  em "Minha conta"). Na aba de Chaves (ADMIN), o botão "Revogar" passou a se chamar **Excluir**.
 - Front-end: a primeira tela agora é o **login**, com link para o **cadastro**. Ao entrar, o painel prepara
   sozinho a chave de API pessoal (cria na primeira vez e reaproveita depois) e abre os produtos. Botão **Sair** no topo.
 - Front-end: a aba "Testes da Parte 2" passou a se chamar **Recursos avançados**.

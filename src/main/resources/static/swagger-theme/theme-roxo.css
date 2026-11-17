@@ -159,3 +159,72 @@ body, .swagger-ui {
     margin-top: 20px !important;
     margin-bottom: 25px !important;
 }
+
+/* 3. Tabela de parametros: coluna do nome com largura fixa, assim
+      "X-API-Version" nao quebra em duas linhas e "integer($int64)" nao invade a descricao */
+.swagger-ui table.parameters {
+    table-layout: fixed;
+    width: 100%;
+    border-collapse: separate;
+    border-spacing: 0;
+}
+.swagger-ui table.parameters > thead > tr > th.parameters-col_name,
+.swagger-ui table.parameters > tbody > tr > td.parameters-col_name {
+    width: 240px;
+    min-width: 240px;
+    padding: 14px 18px 14px 0;
+    vertical-align: top;
+}
+.swagger-ui table.parameters > tbody > tr > td.parameters-col_description {
+    padding: 14px 0;
+    vertical-align: top;
+    overflow-wrap: anywhere;
+}
+.swagger-ui table.parameters > tbody > tr + tr > td {
+    border-top: 1px solid var(--roxo-suave);
+}
+.swagger-ui .parameter__name {
+    font-size: 15px;
+    font-weight: 700;
+    color: var(--roxo-escuro);
+    white-space: nowrap;
+}
+.swagger-ui .parameter__name.required::after {
+    font-size: 11px;
+}
+.swagger-ui .parameter__type {
+    display: inline-block;
+    margin-top: 6px;
+    padding: 2px 8px;
+    border-radius: 999px;
+    background: var(--roxo-suave);
+    color: var(--roxo-escuro);
+    font-size: 12px;
+    white-space: nowrap;
+}
+.swagger-ui .parameter__in {
+    display: block;
+    margin-top: 4px;
+    font-size: 12px;
+    color: #6d6177;
+}
+.swagger-ui .parameters-col_description .markdown p,
+.swagger-ui .parameters-col_description .renderedMarkdown p {
+    margin: 0 0 6px;
+    font-size: 14px;
+    line-height: 1.45;
+}
+.swagger-ui .parameters-col_description input[type="text"],
+.swagger-ui .parameters-col_description select {
+    width: 100%;
+    max-width: 360px;
+}
+/* em tela estreita (notebook com zoom, celular) a coluna do nome diminui um pouco */
+@media (max-width: 700px) {
+    .swagger-ui table.parameters > thead > tr > th.parameters-col_name,
+    .swagger-ui table.parameters > tbody > tr > td.parameters-col_name {
+        width: 160px;
+        min-width: 160px;
+    }
+    .swagger-ui .parameter__name { white-space: normal; overflow-wrap: anywhere; }
+}

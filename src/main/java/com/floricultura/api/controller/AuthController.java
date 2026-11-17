@@ -7,6 +7,7 @@ import org.springframework.hateoas.EntityModel;
 import org.springframework.hateoas.Link;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
+import org.springframework.web.bind.annotation.DeleteMapping;
 import org.springframework.web.bind.annotation.GetMapping;
 import org.springframework.web.bind.annotation.PostMapping;
 import org.springframework.web.bind.annotation.RequestBody;
@@ -110,6 +111,22 @@ public class AuthController {
         EntityModel<ApiKeyCriadaResponse> model = EntityModel.of(usuarioService.gerarMinhaChave(token),
                 linksDaConta());
         return ResponseEntity.status(HttpStatus.CREATED).body(model);
+    }
+
+    @DeleteMapping("/minha-chave")
+    @Operation(summary = "Exclui a minha chave de API pessoal",
+            description = "Apaga a chave da conta: ela para de funcionar na hora. Depois, se quiser, "
+                    + "gere outra em POST /auth/minha-chave.")
+    @ApiResponses({
+            @ApiResponse(responseCode = "204", description = "Chave excluida"),
+            @ApiResponse(responseCode = "401", description = "Sessao ausente ou expirada"),
+            @ApiResponse(responseCode = "404", description = "A conta nao tem chave"),
+            @ApiResponse(responseCode = "409", description = "A chave e a ultima ADMIN ativa e nao pode ser excluida")
+    })
+    public ResponseEntity<Void> excluirMinhaChave(
+            @RequestHeader(value = SessaoService.HEADER, required = false) String token) {
+        usuarioService.excluirMinhaChave(token);
+        return ResponseEntity.noContent().build();
     }
 
     @PostMapping("/logout")

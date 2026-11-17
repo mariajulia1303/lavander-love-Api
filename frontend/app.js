@@ -589,7 +589,7 @@ async function carregarChaves(url) {
         <td class="acoes-linha">
           <button class="secundario mini" data-alternar="${k.id}">${k.ativa ? "Desativar" : "Ativar"}</button>
           <button class="secundario mini" data-rotacionar="${k.id}">Rotacionar</button>
-          <button class="perigo mini" data-excluir="${esc(k._links?.delete?.href || "")}" data-nome="${esc(k.nome)}">Revogar</button>
+          <button class="perigo mini" data-excluir="${esc(k._links?.delete?.href || "")}" data-nome="${esc(k.nome)}" title="Apaga a chave (DELETE /api-keys/{id})">Excluir</button>
         </td></tr>`;
     }).join("");
     renderPaginacao("#key-pag", dados, carregarChaves);
@@ -879,6 +879,8 @@ function renderConta() {
     : `<p class="dica">Você ainda não tem chave de API.</p>`;
   $("#conta-gerar").textContent = k ? "Gerar nova chave" : "Criar minha chave";
   $("#conta-gerar").disabled = !!(k && !k.ativa);
+  $("#conta-excluir").classList.toggle("escondido", !k);
+  $("#conta-copiar-atual").classList.toggle("escondido", !k);
 }
 
 async function carregarConta() {
@@ -958,6 +960,44 @@ function ligarConta() {
       conta.usuario.chave = { id: dados.id, prefixo: dados.prefixo, nivel: dados.nivel, plano: dados.plano,
         ativa: true, ultimoUso: conta.usuario.chave?.ultimoUso || null };
       renderConta();
+    } catch (e) {
+      if (e instanceof ApiErro && e.status === 401) { conta.token = ""; salvarSessao(""); conta.usuario = null; mostrarEntrada(); }
+      avisar(mensagemErro(e), "erro");
+    }
+  });
+
+  // copia a chave que ja existe. a API nunca devolve o valor de novo (so guarda o hash),
+  // entao o valor vem do que ficou salvo neste navegador quando a chave foi criada
+  $("#conta-copiar-atual").addEventListener("click", async () => {
+    const valor = chaveGuardada(conta.usuario);
+    if (!valor) {
+      avisar("Esta chave foi criada em outro navegador, então o valor não está salvo aqui. "
+        + "Clique em \"Gerar nova chave\" para ter um valor novo.", "erro");
+      return;
+    }
+    try {
+      await navigator.clipboard.writeText(valor);
+      avisar("Chave copiada.");
+    } catch {
+      $("#conta-nova-valor").textContent = valor;
+      $("#conta-nova").classList.remove("escondido");
+      avisar("Não deu pra copiar automaticamente: a chave apareceu abaixo, selecione e copie.", "erro");
+    }
+  });
+
+  // DELETE /auth/minha-chave: a chave para de funcionar na hora e a conta fica sem chave
+  $("#conta-excluir").addEventListener("click", async () => {
+    if (!confirm("Excluir a sua chave de API? Ela para de funcionar na hora e o painel fica só com o que é público.")) return;
+    try {
+      await auth("DELETE", "/auth/minha-chave");
+      const u = conta.usuario;
+      const guardada = chaveGuardada(u);
+      salvarStorage("ll.key.u" + u.id, "");
+      u.chave = null;
+      $("#conta-nova").classList.add("escondido");
+      if (guardada && cfg.key === guardada) definirChave("");
+      renderConta();
+      avisar("Chave excluída. Se precisar, clique em \"Criar minha chave\" para gerar outra.");
     } catch (e) {
       if (e instanceof ApiErro && e.status === 401) { conta.token = ""; salvarSessao(""); conta.usuario = null; mostrarEntrada(); }
       avisar(mensagemErro(e), "erro");

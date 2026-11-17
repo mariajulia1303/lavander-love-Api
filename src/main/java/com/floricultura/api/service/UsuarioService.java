@@ -15,6 +15,7 @@ import com.floricultura.api.entity.NivelAcesso;
 import com.floricultura.api.entity.Plano;
 import com.floricultura.api.entity.Usuario;
 import com.floricultura.api.exception.ConflictException;
+import com.floricultura.api.exception.ResourceNotFoundException;
 import com.floricultura.api.exception.UnauthorizedException;
 import com.floricultura.api.repository.UsuarioRepository;
 import com.floricultura.api.security.SenhaUtil;
@@ -83,6 +84,17 @@ public class UsuarioService {
             repository.save(u);
         }
         return criada;
+    }
+
+    // exclui a chave pessoal: o valor para de funcionar na hora e a conta fica sem chave
+    // (da pra criar outra depois em POST /auth/minha-chave)
+    @Transactional
+    public void excluirMinhaChave(String token) {
+        Usuario u = usuarioDaSessao(token);
+        if (u.getApiKey() == null) {
+            throw new ResourceNotFoundException("Voce ainda nao tem chave de API para excluir.");
+        }
+        apiKeyService.revogar(u.getApiKey().getId(), null);
     }
 
     public void logout(String token) {

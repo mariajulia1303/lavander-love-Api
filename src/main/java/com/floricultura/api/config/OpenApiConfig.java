@@ -317,17 +317,114 @@ public class OpenApiConfig {
         }
     }
 
-    // percorre os modelos (corpos de requisicao e resposta) e escreve os limites de cada campo
+    // ------------------------------------------------------------------
+    // EXEMPLOS: valores reais (os mesmos do data.sql) no lugar de "string" e 0
+    // ------------------------------------------------------------------
+    private static final String DATA = "2026-11-17T14:30:00";
+
+    // exemplo por campo, valendo pra qualquer modelo
+    private static final Map<String, Object> EXEMPLO_GERAL = Map.ofEntries(
+            Map.entry("id", 1),
+            Map.entry("email", "maria.silva@email.com"),
+            Map.entry("telefone", "11999990000"),
+            Map.entry("logradouro", "Rua das Flores"),
+            Map.entry("numero", "100"),
+            Map.entry("bairro", "Centro"),
+            Map.entry("cidade", "São Paulo"),
+            Map.entry("uf", "SP"),
+            Map.entry("cep", "01001000"),
+            Map.entry("preco", new java.math.BigDecimal("89.90")),
+            Map.entry("estoque", 15),
+            Map.entry("disponivel", true),
+            Map.entry("categoriaId", 1),
+            Map.entry("clienteId", 1),
+            Map.entry("produtoIds", List.of(1, 2)),
+            Map.entry("dataPedido", DATA),
+            Map.entry("criadaEm", DATA),
+            Map.entry("criadoEm", DATA),
+            Map.entry("ultimoUso", DATA),
+            Map.entry("expiraEm", "2026-11-17T15:30:00Z"),
+            Map.entry("prefixo", "ll_3kq9X..."),
+            Map.entry("ativa", true));
+
+    // exemplo de campos com o mesmo nome em modelos diferentes (ex.: "nome")
+    private static final Map<String, Map<String, Object>> EXEMPLO_POR_MODELO = Map.of(
+            "Categoria", Map.of("nome", "Buquês", "descricao", "Buquês variados para qualquer ocasião"),
+            "CategoriaResumo", Map.of("nome", "Buquês"),
+            "Produto", Map.of("nome", "Buquê de Rosas Vermelhas"),
+            "ProdutoV2", Map.of("nome", "Buquê de Rosas Vermelhas"),
+            "Cliente", Map.of("nome", "Maria Silva"),
+            "Usuario", Map.of("nome", "Maria Julia", "email", "maria@teste.com"),
+            "ApiKey", Map.of("nome", "Front-end da loja"),
+            "ChaveResumo", Map.of("nome", "Maria Julia"));
+
+    // recurso de cada modelo, pra montar o link de exemplo do _links
+    private static final Map<String, String> RECURSO_DO_MODELO = Map.of(
+            "Categoria", "categorias",
+            "Produto", "produtos",
+            "ProdutoV2", "produtos",
+            "Cliente", "clientes",
+            "Endereco", "enderecos",
+            "Pedido", "pedidos",
+            "ApiKey", "api-keys",
+            "ApiKeyCriada", "api-keys",
+            "Usuario", "auth/me");
+
+    // "EntityModelCategoria" -> "Categoria", "ProdutoRequest" -> "Produto", "UsuarioResponse" -> "Usuario"
+    private static String tipoDoModelo(String nomeSchema) {
+        String n = nomeSchema.replace("PagedModel", "").replace("CollectionModel", "").replace("EntityModel", "");
+        for (String sufixo : List.of("Request", "Response", "UpdateRequest")) {
+            if (n.endsWith(sufixo) && n.length() > sufixo.length()) {
+                n = n.substring(0, n.length() - sufixo.length());
+            }
+        }
+        return n.replace("ApiKeyUpdate", "ApiKey");
+    }
+
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private void colocarExemplos(String nomeSchema, Map<String, Schema> campos) {
+        String tipo = tipoDoModelo(nomeSchema);
+        // cadastro e login ficam com os campos vazios de proposito
+        if (tipo.equals("Cadastro") || tipo.equals("Login")) {
+            return;
+        }
+        Map<String, Object> doModelo = EXEMPLO_POR_MODELO.getOrDefault(tipo, Map.of());
+        for (Map.Entry<String, Schema> e : new java.util.ArrayList<>(campos.entrySet())) {
+            String nome = e.getKey();
+            Schema campo = e.getValue();
+            if ("_links".equals(nome)) {
+                // links HATEOAS: mostra um "self" de verdade em vez de additionalProp1, 2, 3
+                String recurso = RECURSO_DO_MODELO.get(tipo);
+                String href = "http://localhost:8080/" + (recurso == null ? "" : recurso
+                        + (recurso.contains("/") || nomeSchema.startsWith("PagedModel") ? "" : "/1"));
+                campos.put(nome, new io.swagger.v3.oas.models.media.ObjectSchema()
+                        .description("Links para navegar pela API (HATEOAS)")
+                        .example(Map.of("self", Map.of("href", href))));
+                continue;
+            }
+            if (campo == null || campo.get$ref() != null || campo.getExample() != null) {
+                continue;
+            }
+            Object exemplo = doModelo.containsKey(nome) ? doModelo.get(nome) : EXEMPLO_GERAL.get(nome);
+            if (exemplo != null) {
+                campo.setExample(exemplo);
+            }
+        }
+    }
+
+    // percorre os modelos (corpos de requisicao e resposta): exemplos + limites de cada campo
     @SuppressWarnings({ "rawtypes", "unchecked" })
     private void formatarSchemas(OpenAPI openApi) {
         if (openApi.getComponents() == null || openApi.getComponents().getSchemas() == null) {
             return;
         }
-        for (Schema modelo : openApi.getComponents().getSchemas().values()) {
+        for (Map.Entry<String, Schema> m : openApi.getComponents().getSchemas().entrySet()) {
+            Schema modelo = m.getValue();
             Map<String, Schema> campos = modelo.getProperties();
             if (campos == null) {
                 continue;
             }
+            colocarExemplos(m.getKey(), campos);
             for (Schema campo : campos.values()) {
                 String regra = regraDeTamanho(campo.getMinLength(), campo.getMaxLength());
                 if (regra == null && campo.getMinimum() != null) {
