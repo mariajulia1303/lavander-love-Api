@@ -11,6 +11,18 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 > A versão da **aplicação** (abaixo) é diferente da versão do **contrato HTTP** (`X-API-Version`).
 > O contrato v1 continua funcionando sem alteração; a v2 é escolhida pelo cliente via header.
 
+## [2.1.1] - 2026-11-17
+
+### Alterado
+- Swagger: todos os parâmetros (id, filtros, paginação e headers) ganharam descrição em português,
+  exemplo e o limite escrito por extenso (ex.: "Texto de 1 a 100 caracteres", "Número inteiro, a partir de 1").
+- Swagger: os campos dos corpos mostram o limite de caracteres/valor na descrição.
+- Swagger: o botão **Authorize** ganhou o campo **LoginToken** (`X-Session-Token`). O token do login é
+  informado uma vez só e vale para `/auth/me`, `/auth/minha-chave` e `/auth/logout`.
+- Front-end: a primeira tela agora é o **login**, com link para o **cadastro**. Ao entrar, o painel prepara
+  sozinho a chave de API pessoal (cria na primeira vez e reaproveita depois) e abre os produtos. Botão **Sair** no topo.
+- Front-end: a aba "Testes da Parte 2" passou a se chamar **Recursos avançados**.
+
 ## [2.1.0] - 2026-11-03
 
 ### Adicionado

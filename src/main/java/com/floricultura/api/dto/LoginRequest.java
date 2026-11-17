@@ -8,11 +8,9 @@ import jakarta.validation.constraints.Size;
 public record LoginRequest(
         @NotBlank
         @Size(max = 120, message = "deve ter no maximo 120 caracteres")
-        @Schema(example = "maria@email.com")
         String email,
 
         @NotBlank
         @Size(max = 72, message = "deve ter no maximo 72 caracteres")
-        @Schema(example = "minhaSenha123")
         String senha) {
 }

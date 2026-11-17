@@ -42,7 +42,8 @@ const moeda = (v) => Number(v ?? 0).toLocaleString("pt-BR", { style: "currency",
 const dataHora = (v) => (v ? new Date(v).toLocaleString("pt-BR") : "—");
 
 function avisar(msg, tipo = "ok") {
-  const el = $("#aviso");
+  // antes do login o aviso aparece na propria tela de entrada
+  const el = document.body.classList.contains("logado") ? $("#aviso") : $("#entrada-aviso");
   el.textContent = msg;
   el.className = "aviso " + tipo;
   clearTimeout(avisar.t);
@@ -140,11 +141,24 @@ function atualizarUltima(status, h = {}) {
   el.className = "chip " + (status >= 200 && status < 300 ? "ok" : status === 429 || status >= 400 ? "ruim" : "");
 }
 
+// a aba "Chaves de API" lista as chaves de TODOS os usuarios: so aparece pra quem esta com chave ADMIN.
+// (a propria API tambem barra: /api-keys exige ADMIN, senao 401/403)
+function atualizarAbaChaves() {
+  const admin = cfg.nivel === "ADMIN";
+  $('.abas button[data-aba="chaves"]').classList.toggle("escondido", !admin);
+  if (!admin && abaAtual === "chaves") abrirAba("conta");
+}
+
 async function verificarChave() {
+  try { await verificarChaveInterno(); } finally { atualizarAbaChaves(); }
+}
+
+async function verificarChaveInterno() {
   const el = $("#st-chave");
   if (!cfg.key) {
     el.textContent = "Sem chave (só leitura pública)";
     el.className = "chip";
+    cfg.nivel = null;
     return;
   }
   try {
@@ -649,7 +663,7 @@ function ligarChaves() {
 }
 
 // =====================================================================
-// TESTES DA PARTE 2
+// RECURSOS AVANCADOS (rate limit, idempotencia, versionamento, CORS)
 // =====================================================================
 function resumo(r) {
   if (r instanceof ApiErro) return `${r.status} ${r.dados?.message || ""}`;
@@ -774,11 +788,82 @@ function salvarSessao(t) {
 const auth = (metodo, caminho, corpo) =>
   api(metodo, caminho, { corpo, chave: "", idemKey: null, sessao: conta.token || undefined });
 
+// ---------- tela de entrada (login / cadastro) x painel ----------
+function mostrarEntrada(qual = "login") {
+  document.body.classList.remove("logado");
+  $("#login-form").classList.toggle("escondido", qual !== "login");
+  $("#cadastro-form").classList.toggle("escondido", qual !== "cadastro");
+  $("#entrada-base").value = cfg.base;
+  $(qual === "login" ? "#login-form input[name=email]" : "#cadastro-form input[name=nome]")?.focus();
+}
+
+function mostrarPainel() {
+  document.body.classList.add("logado");
+  $("#st-usuario").textContent = conta.usuario ? `👤 ${conta.usuario.nome}` : "";
+  abrirAba("produtos");
+}
+
+// a chave pessoal fica guardada no navegador, separada por usuario.
+// ao entrar: se a chave guardada ainda e a da conta, usa; se a conta nao tem chave, cria uma na hora.
+const chaveGuardada = (u) => lerStorage("ll.key.u" + u.id) || "";
+
+async function garantirChave() {
+  const u = conta.usuario;
+  const k = u.chave;
+  const guardada = chaveGuardada(u);
+  if (k && guardada && guardada.startsWith((k.prefixo || "").replace("...", ""))) {
+    definirChave(guardada);
+    return;
+  }
+  if (k && !k.ativa) {
+    definirChave("");
+    avisar("Sua chave de API foi desativada por um administrador. Você só consegue ver o que é público.", "erro");
+    return;
+  }
+  // sem chave (ou chave de outro navegador, cujo valor nao da pra recuperar): gera o valor novo
+  const { dados } = await auth("POST", "/auth/minha-chave");
+  salvarStorage("ll.key.u" + u.id, dados.chave);
+  u.chave = { id: dados.id, prefixo: dados.prefixo, nivel: dados.nivel, plano: dados.plano, ativa: true, ultimoUso: null };
+  definirChave(dados.chave);
+}
+
+// login feito: guarda o token, garante a chave e abre o painel
+async function entrar(dadosLogin) {
+  conta.token = dadosLogin.token; salvarSessao(dadosLogin.token);
+  conta.usuario = dadosLogin.usuario;
+  try {
+    await garantirChave();
+  } catch (e) {
+    avisar("Entrou, mas não deu pra preparar a chave de API: " + mensagemErro(e), "erro");
+  }
+  mostrarPainel();
+}
+
+// ao abrir a pagina: se ainda tem sessao valida, vai direto pro painel
+async function retomarSessao() {
+  if (!conta.token) { mostrarEntrada(); return; }
+  try {
+    const { dados } = await auth("GET", "/auth/me");
+    conta.usuario = dados;
+    if (cfg.key) { verificarChave(); } else { await garantirChave(); }
+    mostrarPainel();
+  } catch {
+    conta.token = ""; salvarSessao(""); conta.usuario = null;
+    mostrarEntrada();
+  }
+}
+
+async function sair() {
+  try { await auth("POST", "/auth/logout"); } catch { /* sai mesmo assim */ }
+  conta.token = ""; salvarSessao(""); conta.usuario = null;
+  cfg.key = ""; $("#cfg-key").value = ""; salvarStorage("ll.key", "");
+  cfg.nivel = null;
+  $("#conta-nova").classList.add("escondido");
+  mostrarEntrada();
+}
+
 function renderConta() {
-  const dentro = !!conta.usuario;
-  $("#conta-fora").classList.toggle("escondido", dentro);
-  $("#conta-dentro").classList.toggle("escondido", !dentro);
-  if (!dentro) return;
+  if (!conta.usuario) { mostrarEntrada(); return; }
   const u = conta.usuario;
   $("#conta-nome").textContent = u.nome;
   $("#conta-email").textContent = u.email;
@@ -797,46 +882,69 @@ function renderConta() {
 }
 
 async function carregarConta() {
-  if (!conta.token) { conta.usuario = null; renderConta(); return; }
+  if (!conta.token) { mostrarEntrada(); return; }
   try {
     const { dados } = await auth("GET", "/auth/me");
     conta.usuario = dados;
+    renderConta();
   } catch (e) {
-    // sessao expirou ou a API reiniciou
-    conta.token = ""; salvarSessao(""); conta.usuario = null;
-    if (!(e instanceof ApiErro && e.status === 401)) avisar(mensagemErro(e), "erro");
+    // sessao expirou ou a API reiniciou: volta pro login
+    if (e instanceof ApiErro && e.status === 401) {
+      conta.token = ""; salvarSessao(""); conta.usuario = null;
+      avisar("Sua sessão expirou. Entre de novo.", "erro");
+      mostrarEntrada();
+    } else {
+      avisar(mensagemErro(e), "erro");
+    }
   }
-  renderConta();
 }
 
 function ligarConta() {
+  // trocar entre "Entrar" e "Cadastre-se"
+  $$("[data-ir]").forEach((b) => b.addEventListener("click", () => {
+    $("#entrada-aviso").classList.add("escondido");
+    mostrarEntrada(b.dataset.ir);
+  }));
+
+  // a URL da API tambem pode ser trocada na tela de entrada (ex.: localhost ou Render)
+  const lerUrlEntrada = () => {
+    const v = $("#entrada-base").value.trim().replace(/\/$/, "");
+    if (v) { cfg.base = v; salvarStorage("ll.base", v); $("#cfg-base").value = v; }
+  };
+
   $("#login-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    lerUrlEntrada();
     const d = dadosDoForm(ev.target);
+    const botao = ev.target.querySelector("button:not([type=button])");
+    botao.disabled = true;
     try {
       const { dados } = await auth("POST", "/auth/login", { email: d.email, senha: d.senha });
-      conta.token = dados.token; salvarSessao(dados.token);
-      conta.usuario = dados.usuario;
       ev.target.reset();
-      $("#conta-nova").classList.add("escondido");
-      renderConta();
+      await entrar(dados);
       avisar(`Bem-vinda(o), ${dados.usuario.nome}!`);
-    } catch (e) { avisar(mensagemErro(e), "erro"); }
+    } catch (e) {
+      avisar(e instanceof ApiErro && e.status === 401 ? "E-mail ou senha incorretos." : mensagemErro(e), "erro");
+    } finally { botao.disabled = false; }
   });
 
   $("#cadastro-form").addEventListener("submit", async (ev) => {
     ev.preventDefault();
+    lerUrlEntrada();
     const d = dadosDoForm(ev.target);
+    const botao = ev.target.querySelector("button:not([type=button])");
+    botao.disabled = true;
     try {
       await auth("POST", "/auth/cadastro", { nome: d.nome, email: d.email, senha: d.senha });
       // ja entra direto depois de criar a conta
       const { dados } = await auth("POST", "/auth/login", { email: d.email, senha: d.senha });
-      conta.token = dados.token; salvarSessao(dados.token);
-      conta.usuario = dados.usuario;
       ev.target.reset();
-      renderConta();
-      avisar("Conta criada! Agora clique em \"Criar minha chave\".");
-    } catch (e) { avisar(mensagemErro(e), "erro"); }
+      await entrar(dados);
+      avisar(`Conta criada! Bem-vinda(o), ${dados.usuario.nome}. Sua chave de API já está em uso.`);
+    } catch (e) {
+      avisar(e instanceof ApiErro && e.status === 409 ? "Já existe uma conta com esse e-mail. Faça o login."
+        : mensagemErro(e), "erro");
+    } finally { botao.disabled = false; }
   });
 
   $("#conta-gerar").addEventListener("click", async () => {
@@ -845,12 +953,13 @@ function ligarConta() {
       const { dados } = await auth("POST", "/auth/minha-chave");
       $("#conta-nova-valor").textContent = dados.chave;
       $("#conta-nova").classList.remove("escondido");
+      salvarStorage("ll.key.u" + conta.usuario.id, dados.chave);
       // atualiza a tela com o que veio na resposta (sem outra requisicao: o limite sem chave e pequeno)
       conta.usuario.chave = { id: dados.id, prefixo: dados.prefixo, nivel: dados.nivel, plano: dados.plano,
         ativa: true, ultimoUso: conta.usuario.chave?.ultimoUso || null };
       renderConta();
     } catch (e) {
-      if (e instanceof ApiErro && e.status === 401) { conta.token = ""; salvarSessao(""); conta.usuario = null; renderConta(); }
+      if (e instanceof ApiErro && e.status === 401) { conta.token = ""; salvarSessao(""); conta.usuario = null; mostrarEntrada(); }
       avisar(mensagemErro(e), "erro");
     }
   });
@@ -867,12 +976,8 @@ function ligarConta() {
     abrirAba("produtos");
   });
 
-  $("#conta-sair").addEventListener("click", async () => {
-    try { await auth("POST", "/auth/logout"); } catch { /* sai mesmo assim */ }
-    conta.token = ""; salvarSessao(""); conta.usuario = null;
-    $("#conta-nova").classList.add("escondido");
-    renderConta();
-  });
+  $("#conta-sair").addEventListener("click", sair);
+  $("#topo-sair").addEventListener("click", sair);
 }
 
 // =====================================================================
@@ -895,6 +1000,14 @@ function abrirAba(nome) {
   $$(".abas button").forEach((b) => b.classList.toggle("ativa", b.dataset.aba === nome));
   $$(".aba").forEach((s) => s.classList.toggle("escondido", s.id !== "aba-" + nome));
   CARREGAR_ABA[nome]?.();
+}
+
+// so troca a chave (sem recarregar a aba): usado no login, antes do painel abrir
+function definirChave(valor) {
+  cfg.key = valor;
+  $("#cfg-key").value = valor;
+  salvarStorage("ll.key", valor);
+  verificarChave();
 }
 
 function usarChave(valor) {
@@ -959,9 +1072,8 @@ function iniciar() {
   ligarConta();
   ligarContadores();
 
-  verificarChave();
-  // sem chave nenhuma, comeca pela tela de login
-  abrirAba(cfg.key ? "produtos" : "conta");
+  // a primeira tela e sempre o login (ou o painel direto, se a sessao ainda vale)
+  retomarSessao();
 }
 
 iniciar();

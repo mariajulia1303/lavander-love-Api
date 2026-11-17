@@ -9,7 +9,44 @@
 </head>
 <body>
 
-<header class="topo">
+<!-- ===================== ENTRADA: login e cadastro (primeira tela) ===================== -->
+<section id="tela-entrada" class="entrada">
+  <div class="entrada-caixa">
+    <div class="entrada-marca">
+      <img src="logo.png" alt="Logo Lavander Love" class="logo">
+      <h1>Lavander Love</h1>
+      <p>Painel da floricultura</p>
+    </div>
+
+    <!-- login -->
+    <form id="login-form" class="cartao">
+      <h2>Entrar</h2>
+      <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="username"></label>
+      <label>Senha <input name="senha" type="password" required maxlength="72" autocomplete="current-password"></label>
+      <button>Entrar</button>
+      <p class="troca">Não tem conta? <button type="button" class="link" data-ir="cadastro">Cadastre-se</button></p>
+    </form>
+
+    <!-- cadastro -->
+    <form id="cadastro-form" class="cartao escondido">
+      <h2>Criar conta</h2>
+      <label>Nome <input name="nome" required minlength="3" maxlength="100" autocomplete="name"></label>
+      <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="email"></label>
+      <label>Senha <input name="senha" type="password" required minlength="6" maxlength="72" autocomplete="new-password"></label>
+      <button>Criar conta</button>
+      <p class="troca">Já tem conta? <button type="button" class="link" data-ir="login">Entrar</button></p>
+    </form>
+
+    <div id="entrada-aviso" class="aviso escondido"></div>
+
+    <details class="entrada-conexao">
+      <summary>Conexão com a API</summary>
+      <label>URL da API <input id="entrada-base" type="url" placeholder="http://localhost:8080"></label>
+    </details>
+  </div>
+</section>
+
+<header class="topo app">
   <div class="marca">
     <img src="logo.png" alt="Logo Lavander Love" class="logo">
     <div>
@@ -46,50 +83,32 @@
     <span id="st-chave" class="chip">Sem chave</span>
     <span id="st-rate" class="chip">Rate limit: —</span>
     <span id="st-ultima" class="chip">Última resposta: —</span>
+    <span id="st-usuario" class="chip usuario"></span>
+    <button type="button" id="topo-sair" class="sair">Sair</button>
   </div>
 </header>
 
-<nav class="abas">
+<nav class="abas app">
   <button data-aba="conta">Minha conta</button>
   <button data-aba="produtos" class="ativa">Produtos</button>
   <button data-aba="categorias">Categorias</button>
   <button data-aba="clientes">Clientes</button>
   <button data-aba="pedidos">Pedidos</button>
-  <button data-aba="chaves">Chaves de API</button>
-  <button data-aba="testes">Testes da Parte 2</button>
+  <button data-aba="chaves" class="escondido" title="Só aparece para chave ADMIN">Chaves de API</button>
+  <button data-aba="testes">Recursos avançados</button>
   <button data-aba="log">Log</button>
 </nav>
 
-<div id="aviso" class="aviso escondido"></div>
+<div id="aviso" class="aviso escondido app"></div>
 
-<main>
+<main class="app">
 
   <!-- ===================== MINHA CONTA (login + chave pessoal) ===================== -->
   <section id="aba-conta" class="aba escondido">
     <h2>Minha conta</h2>
 
-    <!-- deslogado: entrar ou criar conta -->
-    <div id="conta-fora" class="conta-grade">
-      <form id="login-form" class="cartao">
-        <h3>Entrar</h3>
-        <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="username"></label>
-        <label>Senha <input name="senha" type="password" required maxlength="72" autocomplete="current-password"></label>
-        <div class="acoes"><button>Entrar</button></div>
-        <p class="dica">Depois de entrar você gera a sua chave de API pessoal.</p>
-      </form>
-
-      <form id="cadastro-form" class="cartao">
-        <h3>Criar conta</h3>
-        <label>Nome <input name="nome" required minlength="3" maxlength="100" autocomplete="name"></label>
-        <label>E-mail <input name="email" type="email" required maxlength="120" autocomplete="email"></label>
-        <label>Senha <input name="senha" type="password" required minlength="6" maxlength="72" autocomplete="new-password"></label>
-        <div class="acoes"><button>Criar conta</button></div>
-        <p class="dica">A senha fica guardada só como hash: nem quem acessa o banco consegue ler.</p>
-      </form>
-    </div>
-
     <!-- logado: dados da conta e a chave -->
-    <div id="conta-dentro" class="conta-grade escondido">
+    <div id="conta-dentro" class="conta-grade">
       <div class="cartao">
         <h3>Olá, <span id="conta-nome"></span></h3>
         <p class="dica" id="conta-email"></p>
@@ -112,11 +131,10 @@
         <h3>Como funciona</h3>
         <ol class="passos">
           <li>Você entra com e-mail e senha e a API devolve um <b>token de sessão</b> (vale 60 min).</li>
-          <li>Com esse token você gera a sua <b>chave de API</b>: uma por pessoa, nível ESCRITA, plano BASICO.</li>
-          <li>Clique em <b>Usar esta chave no painel</b>: ela vai no header <code>X-API-Key</code> de todas as requisições.</li>
+          <li>Com esse token o painel prepara a sua <b>chave de API</b>: uma por pessoa, nível ESCRITA, plano BASICO.</li>
+          <li>A chave vai sozinha no header <code>X-API-Key</code> de todas as requisições do painel.</li>
           <li>Gerar de novo troca o valor da chave (a anterior para de funcionar na hora).</li>
         </ol>
-        <p class="dica">O banco é em memória: se a API for reiniciada, contas e chaves somem. Aí é só criar a conta de novo.</p>
       </div>
     </div>
   </section>
@@ -302,7 +320,7 @@
 
   <!-- ===================== TESTES ===================== -->
   <section id="aba-testes" class="aba escondido">
-    <h2>Testes dos recursos da Parte 2</h2>
+    <h2>Recursos avançados da API <small>limite de requisições, idempotência, versionamento e CORS</small></h2>
     <div class="testes">
       <div class="cartao">
         <h3>Rate limit (429)</h3>

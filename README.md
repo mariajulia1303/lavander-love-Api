@@ -309,7 +309,9 @@ arquivos estáticos ficam de fora (`/limites` também passa por eles). Os erros 
   quantas requisições ela pode fazer, ver [Rate limiting](#rate-limiting)). Como a chave fica ligada ao cliente,
   quem abusa pode ter a chave desativada (`ativa: false`) sem adiantar trocar de IP.
 
-Endpoints de gerenciamento (`/api-keys`, exigem ADMIN):
+Endpoints de gerenciamento (`/api-keys`, exigem ADMIN). Eles aparecem no Swagger, na seção
+"Chaves de API", mas só funcionam com chave ADMIN (os outros recebem 401/403). Para escondê-los da
+documentação, use `lavander.docs.mostrar-gerenciamento-chaves=false`.
 
 | Método / rota | Ação |
 |---------------|------|
@@ -483,7 +485,7 @@ Front simples em **HTML + CSS + JavaScript puro**, na pasta `frontend/` (sem bui
 - Todo POST manda um `X-Idempotency-Key` novo; em Pedidos há o botão **"Reenviar com a mesma chave"** que
   mostra a API devolvendo o mesmo pedido em vez de criar outro.
 - Seletor de **versão** (troca a tabela de produtos entre v1 e v2) e barra com o **rate limit** (plano e fichas restantes).
-- Aba **Testes da Parte 2**: dispara requisições até tomar 429 (e a penalidade), consulta `GET /limites`, testa idempotência (igual / diferente / sem
+- Aba **Recursos avançados**: dispara requisições até tomar 429 (e a penalidade), consulta `GET /limites`, testa idempotência (igual / diferente / sem
   header), compara v1 × v2, testa 401/403 com chaves diferentes e explica o CORS.
 - Aba **Log** com cada requisição: headers enviados, headers recebidos e corpo da resposta.
 

@@ -207,3 +207,33 @@ td.vazio { text-align: center; color: var(--texto-suave); padding: 24px; }
 .chave-info { display: grid; grid-template-columns: auto 1fr; gap: 4px 12px; font-size: 14px; margin: 4px 0 8px; }
 .chave-info dt { color: var(--texto-suave); }
 .chave-info dd { margin: 0; }
+
+/* ---------- tela de entrada (login / cadastro) ---------- */
+/* antes do login so a tela de entrada aparece; depois, so o painel */
+body:not(.logado) .app { display: none !important; }
+body.logado .entrada { display: none; }
+
+.entrada {
+  min-height: 100vh;
+  display: grid;
+  place-items: center;
+  padding: 24px 16px;
+  background: linear-gradient(135deg, var(--roxo-escuro), var(--roxo-medio) 55%, var(--roxo-claro));
+}
+.entrada-caixa { width: 100%; max-width: 380px; display: grid; gap: 16px; }
+.entrada-marca { text-align: center; color: var(--branco); }
+.entrada-marca .logo { height: 84px; width: 84px; }
+.entrada-marca h1 { margin: 10px 0 2px; font-size: 26px; letter-spacing: .5px; }
+.entrada-marca p { margin: 0; opacity: .85; }
+.entrada .cartao { padding: 24px; gap: 12px; box-shadow: 0 12px 32px rgba(0, 0, 0, .25); }
+.entrada .cartao h2 { margin: 0 0 4px; text-align: center; }
+.entrada .cartao > button { width: 100%; padding: 10px; font-weight: 600; }
+.entrada .troca { margin: 0; text-align: center; font-size: 14px; color: var(--texto-suave); }
+.entrada .aviso { margin: 0; }
+.entrada-conexao { color: var(--branco); font-size: 13px; opacity: .9; }
+.entrada-conexao summary { cursor: pointer; text-align: center; }
+.entrada-conexao label { display: grid; gap: 4px; margin-top: 8px; }
+
+.status .usuario { margin-left: auto; background: rgba(255, 255, 255, .25); }
+.status .sair { background: rgba(255, 255, 255, .15); border: 1px solid rgba(255, 255, 255, .4); padding: 4px 14px; font-size: 12px; border-radius: 999px; }
+.status .sair:hover { background: rgba(255, 255, 255, .3); }

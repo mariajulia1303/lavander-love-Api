@@ -6,12 +6,14 @@ import java.util.Map;
 
 import org.springdoc.core.customizers.OpenApiCustomizer;
 import org.springdoc.core.models.GroupedOpenApi;
+import org.springframework.beans.factory.annotation.Value;
 import org.springframework.context.annotation.Bean;
 import org.springframework.context.annotation.Configuration;
 
 import com.floricultura.api.entity.NivelAcesso;
 import com.floricultura.api.exception.ApiError;
 import com.floricultura.api.security.PoliticaAcesso;
+import com.floricultura.api.security.SessaoService;
 import com.floricultura.api.versioning.VersaoApi;
 import com.floricultura.api.web.ApiPaths;
 
@@ -48,6 +50,8 @@ import io.swagger.v3.oas.models.security.SecurityScheme;
 public class OpenApiConfig {
 
     public static final String SECURITY_SCHEME = "ApiKeyAuth";
+    // segundo cadeado do "Authorize": o token de login (rotas /auth/me, /auth/minha-chave e /auth/logout)
+    public static final String SESSAO_SCHEME = "LoginToken";
     private static final String REF_ERRO = "#/components/schemas/ApiError";
 
     @Bean
@@ -58,7 +62,8 @@ public class OpenApiConfig {
                         .in(SecurityScheme.In.HEADER)
                         .name("X-API-Key")
                         .description("Chave de API. Chaves de demonstracao: `ll_admin_dev_123` (ADMIN), "
-                                + "`ll_escrita_dev_123` (ESCRITA) e `ll_leitura_dev_123` (LEITURA).")))
+                                + "`ll_escrita_dev_123` (ESCRITA) e `ll_leitura_dev_123` (LEITURA)."))
+                        .addSecuritySchemes(SESSAO_SCHEME, esquemaSessao()))
                 .info(new Info()
                         .title("Lavender Love")
                         .description("API RESTful da Lavander Love, uma floricultura. Projeto final do curso de APIs com Spring Boot. "
@@ -73,12 +78,16 @@ public class OpenApiConfig {
                                 + "**Autenticação (X-API-Key)**\n\n"
                                 + "- Clique em **Authorize** e informe a chave. Níveis: `LEITURA` < `ESCRITA` < `ADMIN`.\n"
                                 + "- GET de produtos e categorias é público. GET dos demais exige LEITURA, "
-                                + "POST/PUT exigem ESCRITA, DELETE e /api-keys exigem ADMIN.\n\n"
+                                + "POST/PUT exigem ESCRITA, DELETE exige ADMIN.\n"
+                                + "- **Gerar e gerenciar chaves:** seção **Chaves de API** (`/api-keys`), só com chave ADMIN: "
+                                + "gerar (com nível e plano), listar, alterar nível/plano, ativar/desativar, rotacionar e revogar. "
+                                + "Sem ser ADMIN, essas rotas respondem 401/403.\n"
+                                + "- Cada pessoa também pode gerar a **própria** chave em **Conta e login**.\n\n"
 
                                 + "**Conta e chave pessoal**\n\n"
                                 + "- Não tem chave? Crie uma conta em `POST /auth/cadastro`, entre em `POST /auth/login` "
                                 + "(recebe um `token`) e gere a sua chave em `POST /auth/minha-chave` com o header "
-                                + "`X-Session-Token`. Cada pessoa tem **uma** chave (nível ESCRITA, plano BASICO).\n\n"
+                                + "`X-Session-Token` (no Swagger: botão **Authorize**, campo **LoginToken**). Cada pessoa tem **uma** chave (nível ESCRITA, plano BASICO).\n\n"
 
                                 + "**Idempotência (X-Idempotency-Key)**\n\n"
                                 + "- Todo POST exige o header `X-Idempotency-Key` (ex.: um UUID). Repetir a mesma chave com o "
@@ -107,13 +116,26 @@ public class OpenApiConfig {
                                 + "- Sem header = versão 1. `X-API-Version: 2` muda o formato de `GET /produtos` e "
                                 + "`GET /produtos/{id}`. Troque o grupo no topo da página para ver a documentação de cada versão.\n\n"
 
+                                + "**CORS**\n\n"
+                                + "- O navegador só deixa um front-end em outra origem ler as respostas da API se ela autorizar. "
+                                + "Origens liberadas: as de `lavander.cors.allowed-origins` (por padrão o Live Server, "
+                                + "`:5500`, o servidor do IntelliJ, `:63342`, e `http://localhost:8080`). Em produção, "
+                                + "a lista vem da variável de ambiente `LAVANDER_CORS_ORIGINS`.\n"
+                                + "- Métodos liberados: `GET`, `POST`, `PUT`, `DELETE` e `OPTIONS`.\n"
+                                + "- Headers aceitos: `Content-Type`, `Accept`, `X-API-Key`, `X-API-Version`, `X-Idempotency-Key` "
+                                + "e `X-Session-Token`.\n"
+                                + "- Headers que o front pode ler: `Location`, `X-API-Version`, `X-RateLimit-*`, `Retry-After`, "
+                                + "`X-Idempotency-Key` e `X-Idempotency-Replayed`.\n"
+                                + "- Qualquer outra origem é bloqueada pelo navegador. O Swagger não precisa de CORS, porque roda "
+                                + "no mesmo endereço da API.\n\n"
+
                                 + "**Termos de uso (resumo)**\n\n"
                                 + "- Envie dados verdadeiros e respeite a privacidade (LGPD).\n"
                                 + "- Evite excesso de requisições, tentativas de invasão e conteúdo ilegal: "
                                 + "o acesso pode ser **bloqueado**.\n"
                                 + "- Prefira cancelar pedidos a apagá-los: exclusões não podem ser desfeitas.\n"
                                 + "- Banco em memória: os dados são apagados ao reiniciar.")
-                        .version("2.1.0")
+                        .version("2.1.1")
                         .termsOfService("https://github.com/mariajulia1303/lavander-love-Api#termos-de-servi%C3%A7o")
                         .contact(new Contact()
                                 .name("Lavander Love")
@@ -128,6 +150,7 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("v1")
                 .pathsToMatch("/**")
+                .pathsToExclude(rotasOcultas())
                 // na v1 ficam de fora os metodos marcados como versao 2
                 .addOpenApiMethodFilter(m -> versaoDe(m) != 2)
                 .addOpenApiCustomizer(customizer("1"))
@@ -139,10 +162,21 @@ public class OpenApiConfig {
         return GroupedOpenApi.builder()
                 .group("v2")
                 .pathsToMatch("/**")
+                .pathsToExclude(rotasOcultas())
                 // na v2 ficam de fora os metodos que foram substituidos (marcados como versao 1)
                 .addOpenApiMethodFilter(m -> versaoDe(m) != 1)
                 .addOpenApiCustomizer(customizer("2"))
                 .build();
+    }
+
+    // o gerenciamento de chaves (/api-keys) e so pra administradores e lista as chaves de todo mundo,
+    // por isso fica FORA da documentacao publica. os endpoints continuam funcionando normalmente
+    // (com chave ADMIN). pra mostrar de novo: lavander.docs.mostrar-gerenciamento-chaves=true
+    @Value("${lavander.docs.mostrar-gerenciamento-chaves:false}")
+    private boolean mostrarGerenciamentoChaves;
+
+    private String[] rotasOcultas() {
+        return mostrarGerenciamentoChaves ? new String[] { "/nada-oculto" } : new String[] { "/api-keys/**", "/api-keys" };
     }
 
     private static int versaoDe(Method method) {
@@ -164,12 +198,181 @@ public class OpenApiConfig {
                 openApi.getComponents().addSecuritySchemes(SECURITY_SCHEME, new SecurityScheme()
                         .type(SecurityScheme.Type.APIKEY).in(SecurityScheme.In.HEADER).name("X-API-Key"));
             }
+            if (!openApi.getComponents().getSecuritySchemes().containsKey(SESSAO_SCHEME)) {
+                openApi.getComponents().addSecuritySchemes(SESSAO_SCHEME, esquemaSessao());
+            }
+            formatarSchemas(openApi);
             if (openApi.getPaths() == null) {
                 return;
             }
             openApi.getPaths().forEach((path, item) -> item.readOperationsMap()
-                    .forEach((httpMethod, op) -> documentar(path, httpMethod, op, versao)));
+                    .forEach((httpMethod, op) -> {
+                        documentar(path, httpMethod, op, versao);
+                        formatarParametros(path, op);
+                    }));
         };
+    }
+
+    // ------------------------------------------------------------------
+    // FORMATACAO DOS CAMPOS
+    // deixa cada parametro e cada campo dos corpos com descricao clara,
+    // exemplo e o limite de caracteres/valores escrito por extenso.
+    // ------------------------------------------------------------------
+
+    // nome do recurso no singular, pra montar "Id do produto", "Id da categoria"...
+    private static final Map<String, String> RECURSOS = Map.of(
+            "produtos", "do produto",
+            "categorias", "da categoria",
+            "clientes", "do cliente",
+            "enderecos", "do endereço",
+            "pedidos", "do pedido",
+            "api-keys", "da chave de API");
+
+    // limite do texto de busca "nome" em cada recurso (o mesmo do cadastro)
+    private static final Map<String, Integer> LIMITE_NOME = Map.of(
+            "produtos", 100,
+            "categorias", 60,
+            "clientes", 100);
+
+    private static String recursoDe(String path) {
+        String[] partes = path.split("/");
+        return partes.length > 1 ? partes[1] : "";
+    }
+
+    private void formatarParametros(String path, Operation op) {
+        if (op.getParameters() == null) {
+            return;
+        }
+        String recurso = recursoDe(path);
+        for (Parameter p : op.getParameters()) {
+            @SuppressWarnings("rawtypes")
+            Schema s = p.getSchema();
+            if (s == null || p.getName() == null) {
+                continue;
+            }
+            String nome = p.getName();
+            // a descricao padrao do Pageable vem em ingles: troca pela nossa
+            if ("page".equals(nome) || "size".equals(nome) || "sort".equals(nome)) {
+                p.setDescription(null);
+            }
+            switch (nome) {
+                case "id" -> {
+                    s.setMinimum(java.math.BigDecimal.ONE);
+                    p.setExample(1);
+                    descrever(p, "Número de identificação " + RECURSOS.getOrDefault(recurso, "do registro") + ".",
+                            "Número inteiro, a partir de 1.");
+                }
+                case "categoriaId", "clienteId" -> {
+                    s.setMinimum(java.math.BigDecimal.ONE);
+                    p.setExample(1);
+                    descrever(p, "Número de identificação " + ("categoriaId".equals(nome) ? "da categoria" : "do cliente")
+                            + ".", "Número inteiro, a partir de 1.");
+                }
+                case "nome", "cidade" -> {
+                    int max = "cidade".equals(nome) ? 60 : LIMITE_NOME.getOrDefault(recurso, 100);
+                    s.setMinLength(1);
+                    s.setMaxLength(max);
+                    if (p.getExample() == null) {
+                        p.setExample("cidade".equals(nome) ? "São Paulo" : "rosa");
+                    }
+                    descrever(p, "cidade".equals(nome) ? "Nome da cidade (ou parte dele)."
+                            : "Nome (ou parte dele). Não diferencia maiúsculas de minúsculas.",
+                            "Texto de 1 a " + max + " caracteres.");
+                }
+                case "precoMin", "precoMax" -> {
+                    s.setMinimum(java.math.BigDecimal.ZERO);
+                    descrever(p, "precoMin".equals(nome) ? "Preço mínimo, em reais (R$)." : "Preço máximo, em reais (R$).",
+                            "Valor a partir de 0, com ponto nas casas decimais (ex.: 20.00).");
+                }
+                case "disponivel" -> descrever(p, "Filtra pelo estoque.",
+                        "`true` = só com estoque; `false` = só esgotados.");
+                case "ativa" -> descrever(p, "Filtra pela situação da chave.",
+                        "`true` = só ativas; `false` = só desativadas.");
+                case "status" -> descrever(p, "Status do pedido.", "Escolha um dos valores da lista.");
+                case "nivel" -> descrever(p, "Nível de acesso da chave.", "Escolha um dos valores da lista.");
+                case "page" -> {
+                    s.setMinimum(java.math.BigDecimal.ZERO);
+                    descrever(p, "Número da página.", "Começa em 0 (0 = primeira página).");
+                }
+                case "size" -> {
+                    s.setMinimum(java.math.BigDecimal.ONE);
+                    descrever(p, "Quantidade de itens por página.", "Número inteiro, a partir de 1 (padrão: 20).");
+                }
+                case "sort" -> descrever(p, "Ordenação.",
+                        "Formato `campo,asc` (crescente) ou `campo,desc` (decrescente). Ex.: `nome,asc`.");
+                case "X-Idempotency-Key" -> {
+                    s.setMinLength(1);
+                    s.setMaxLength(100);
+                    descrever(p, null, "Texto de 1 a 100 caracteres (um UUID tem 36).");
+                }
+                case "X-Session-Token" -> {
+                    s.setMinLength(43);
+                    s.setMaxLength(43);
+                    descrever(p, "Token recebido em `POST /auth/login`.", "Texto de 43 caracteres.");
+                }
+                default -> {
+                    // nada
+                }
+            }
+        }
+    }
+
+    // percorre os modelos (corpos de requisicao e resposta) e escreve os limites de cada campo
+    @SuppressWarnings({ "rawtypes", "unchecked" })
+    private void formatarSchemas(OpenAPI openApi) {
+        if (openApi.getComponents() == null || openApi.getComponents().getSchemas() == null) {
+            return;
+        }
+        for (Schema modelo : openApi.getComponents().getSchemas().values()) {
+            Map<String, Schema> campos = modelo.getProperties();
+            if (campos == null) {
+                continue;
+            }
+            for (Schema campo : campos.values()) {
+                String regra = regraDeTamanho(campo.getMinLength(), campo.getMaxLength());
+                if (regra == null && campo.getMinimum() != null) {
+                    String minimo = campo.getMinimum().stripTrailingZeros().toPlainString();
+                    regra = Boolean.TRUE.equals(campo.getExclusiveMinimum())
+                            ? "Valor maior que " + minimo + "."
+                            : "Valor a partir de " + minimo + ".";
+                }
+                if (regra != null) {
+                    String atual = campo.getDescription();
+                    if (atual == null || !atual.contains(regra)) {
+                        campo.setDescription(atual == null || atual.isBlank() ? regra : atual + " " + regra);
+                    }
+                }
+            }
+        }
+    }
+
+    private static String regraDeTamanho(Integer min, Integer max) {
+        if (max == null && (min == null || min == 0)) {
+            return null;
+        }
+        if (min != null && max != null && min.equals(max)) {
+            return "Exatamente " + max + " caracteres.";
+        }
+        if (min != null && min > 0 && max != null) {
+            return "De " + min + " a " + max + " caracteres.";
+        }
+        if (max != null) {
+            return "Até " + max + " caracteres.";
+        }
+        return "No mínimo " + min + " caracteres.";
+    }
+
+    // monta "descricao **regra**" sem repetir quando o swagger e gerado de novo
+    private static void descrever(Parameter p, String padrao, String regra) {
+        String base = p.getDescription();
+        if (base == null || base.isBlank()) {
+            base = padrao == null ? "" : padrao;
+        }
+        String negrito = "**" + regra + "**";
+        if (base.contains(negrito)) {
+            return;
+        }
+        p.setDescription(base.isBlank() ? negrito : base + "\n\n" + negrito);
     }
 
     private void documentar(String path, PathItem.HttpMethod httpMethod, Operation op, String versao) {
@@ -183,9 +386,22 @@ public class OpenApiConfig {
         adicionarHeader(op, "X-API-Version", "2".equals(versao),
                 "Versao da API (1 ou 2). Sem o header = 1.", versao, List.of("1", "2"));
 
+        // rotas da conta que pedem o token de login: em vez de um campo X-Session-Token em cada uma,
+        // o token e informado uma vez so no botao "Authorize" (cadeado LoginToken)
+        boolean usaSessao = op.getParameters() != null && op.getParameters()
+                .removeIf(x -> SessaoService.HEADER.equalsIgnoreCase(x.getName()) && "header".equalsIgnoreCase(x.getIn()));
+        if (usaSessao) {
+            op.addSecurityItem(new SecurityRequirement().addList(SESSAO_SCHEME));
+            acrescentarDescricao(op, "🔑 **Requer login:** clique em **Authorize** e cole o `token` recebido em "
+                    + "`POST /auth/login` no campo **LoginToken (X-Session-Token)**.");
+            adicionarResposta(op, "401", "Token de login ausente, invalido ou expirado");
+        }
+
         // seguranca conforme a mesma politica usada no filtro
         NivelAcesso nivel = PoliticaAcesso.nivelExigido(metodo, path);
-        if (nivel != null) {
+        if (usaSessao) {
+            // ja documentado acima
+        } else if (nivel != null) {
             op.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME));
             acrescentarDescricao(op, "🔒 **Requer `X-API-Key` com nivel " + nivel + " ou superior.**");
             adicionarResposta(op, "401", "Chave de API ausente, invalida ou desativada");
@@ -218,6 +434,16 @@ public class OpenApiConfig {
         r429.addHeaderObject("X-RateLimit-Reset", new Header()
                 .description("Segundos ate o balde encher de novo").schema(new IntegerSchema()));
         op.getResponses().putIfAbsent("429", r429);
+    }
+
+    private static SecurityScheme esquemaSessao() {
+        return new SecurityScheme()
+                .type(SecurityScheme.Type.APIKEY)
+                .in(SecurityScheme.In.HEADER)
+                .name(SessaoService.HEADER)
+                .description("Token de login (43 caracteres). Crie a conta em `POST /auth/cadastro`, entre em "
+                        + "`POST /auth/login` e cole aqui o campo `token` da resposta. Vale por 60 minutos e so "
+                        + "e usado nas rotas da conta (`/auth/me`, `/auth/minha-chave` e `/auth/logout`).");
     }
 
     private void adicionarHeader(Operation op, String nome, boolean obrigatorio, String descricao,

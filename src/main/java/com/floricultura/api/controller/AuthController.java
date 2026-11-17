@@ -24,6 +24,9 @@ import com.floricultura.api.service.UsuarioService;
 
 import io.swagger.v3.oas.annotations.Operation;
 import io.swagger.v3.oas.annotations.Parameter;
+import io.swagger.v3.oas.annotations.media.Content;
+import io.swagger.v3.oas.annotations.media.ExampleObject;
+import io.swagger.v3.oas.annotations.media.Schema;
 import io.swagger.v3.oas.annotations.responses.ApiResponse;
 import io.swagger.v3.oas.annotations.responses.ApiResponses;
 import io.swagger.v3.oas.annotations.tags.Tag;
@@ -54,6 +57,10 @@ public class AuthController {
             @ApiResponse(responseCode = "409", description = "Ja existe conta com este e-mail"),
             @ApiResponse(responseCode = "422", description = "Dados invalidos")
     })
+    // o exemplo do Swagger vem com os campos vazios: cada pessoa preenche os proprios dados
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json",
+            schema = @Schema(implementation = CadastroRequest.class),
+            examples = @ExampleObject(name = "vazio", value = "{\"nome\": \"\", \"email\": \"\", \"senha\": \"\"}")))
     public ResponseEntity<EntityModel<UsuarioResponse>> cadastrar(@Valid @RequestBody CadastroRequest req) {
         EntityModel<UsuarioResponse> model = EntityModel.of(usuarioService.cadastrar(req),
                 linkTo(methodOn(AuthController.class).login(null)).withRel("login"));
@@ -69,6 +76,9 @@ public class AuthController {
             @ApiResponse(responseCode = "401", description = "E-mail ou senha incorretos"),
             @ApiResponse(responseCode = "422", description = "Dados invalidos")
     })
+    @io.swagger.v3.oas.annotations.parameters.RequestBody(required = true, content = @Content(mediaType = "application/json",
+            schema = @Schema(implementation = LoginRequest.class),
+            examples = @ExampleObject(name = "vazio", value = "{\"email\": \"\", \"senha\": \"\"}")))
     public EntityModel<LoginResponse> login(@Valid @RequestBody LoginRequest req) {
         return EntityModel.of(usuarioService.login(req), linksDaConta());
     }

@@ -10,17 +10,14 @@ import jakarta.validation.constraints.Size;
 public record CadastroRequest(
         @NotBlank
         @Size(min = 3, max = 100, message = "deve ter entre 3 e 100 caracteres")
-        @Schema(example = "Maria Julia")
         String nome,
 
         @NotBlank
         @Email
         @Size(max = 120, message = "deve ter no maximo 120 caracteres")
-        @Schema(example = "maria@email.com")
         String email,
 
         @NotBlank
         @Size(min = 6, max = 72, message = "deve ter entre 6 e 72 caracteres")
-        @Schema(example = "minhaSenha123")
         String senha) {
 }
