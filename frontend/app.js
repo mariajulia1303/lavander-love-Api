@@ -8,8 +8,17 @@ const STATUS_PEDIDO = ["PENDENTE", "PAGO", "EM_PREPARACAO", "ENVIADO", "ENTREGUE
 const TAMANHO_PAGINA = 8;
 
 // ---------- configuracao (fica salva no navegador) ----------
+// quando o painel e aberto pela propria API (ex.: https://lavander-love-api.onrender.com/ ou
+// http://localhost:8080/), a API e o mesmo endereco da pagina. Aberto pelo Live Server (:5500)
+// ou pelo IntelliJ (:63342), usa o endereco salvo ou o localhost:8080.
+function urlInicialDaApi() {
+  const servidoPelaApi = location.protocol.startsWith("http") && !["5500", "63342", "63343"].includes(location.port);
+  if (servidoPelaApi) return location.origin;
+  return lerStorage("ll.base") || "http://localhost:8080";
+}
+
 const cfg = {
-  base: lerStorage("ll.base") || "http://localhost:8080",
+  base: urlInicialDaApi(),
   key: lerStorage("ll.key") || "",
   versao: lerStorage("ll.versao") || "1",
 };

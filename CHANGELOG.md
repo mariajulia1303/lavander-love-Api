@@ -17,6 +17,9 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - Swagger: todos os parâmetros (id, filtros, paginação e headers) ganharam descrição em português,
   exemplo e o limite escrito por extenso (ex.: "Texto de 1 a 100 caracteres", "Número inteiro, a partir de 1").
 - Swagger: os campos dos corpos mostram o limite de caracteres/valor na descrição.
+- Deploy: o front-end agora vai junto com a API (pom.xml copia `frontend/` para `static/` e o Dockerfile
+  inclui a pasta). Abrir o endereço da API (ex.: `https://lavander-love-api.onrender.com/`) mostra o painel,
+  que já usa a própria API, sem precisar configurar URL nem CORS.
 - Swagger: descrição geral reescrita (como testar em 5 passos, abas, dados já cadastrados, tabela com
   todos os códigos de status, autenticação, conta, idempotência, rate limit, versionamento, CORS e termos).
 - Swagger: cada aba (Conta e login, Produtos, Categorias, Clientes, Enderecos, Pedidos, Chaves de API,

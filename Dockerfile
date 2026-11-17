@@ -10,6 +10,8 @@ RUN mvn -q -DskipTests dependency:go-offline
 
 # Copy source and build
 COPY src ./src
+# o front-end entra no .jar (pom.xml copia a pasta frontend para static) e abre em "/"
+COPY frontend ./frontend
 RUN mvn -DskipTests clean package
 
 
