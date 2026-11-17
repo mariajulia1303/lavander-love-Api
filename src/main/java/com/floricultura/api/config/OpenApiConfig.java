@@ -54,6 +54,165 @@ public class OpenApiConfig {
     public static final String SESSAO_SCHEME = "LoginToken";
     private static final String REF_ERRO = "#/components/schemas/ApiError";
 
+
+    // descricao geral que aparece no topo do Swagger (markdown)
+    private static final String DESCRICAO = """
+            API RESTful da **Lavander Love**, uma floricultura. Projeto final do curso de APIs com Spring Boot.
+            Representa o dia a dia de uma loja de flores: **clientes**, **endereços**, **produtos**, **categorias** e \
+            **pedidos**, com contas de usuário e chaves de API para controlar o acesso.
+
+            ### Como testar em 5 passos
+            1. Crie uma conta em **Conta e login → `POST /auth/cadastro`** e entre em **`POST /auth/login`**. Copie o `token`.
+            2. Clique em **Authorize** e cole o token no campo **LoginToken**.
+            3. Gere a sua chave em **`POST /auth/minha-chave`** e copie o campo `chave`.
+            4. Em **Authorize**, cole a chave no campo **ApiKeyAuth**. Também dá para usar uma chave de demonstração: \
+            `ll_admin_dev_123` (ADMIN), `ll_escrita_dev_123` (ESCRITA) ou `ll_leitura_dev_123` (LEITURA).
+            5. Abra uma rota, clique em **Try it out** e depois em **Execute**.
+
+            ### Abas da documentação
+            | Aba | O que faz |
+            |---|---|
+            | **Conta e login** | Cadastro, login e chave de API pessoal de cada pessoa |
+            | **Produtos** | Catálogo da loja (buquês, plantas e vasos). Tem **versão 2** |
+            | **Categorias** | Grupos de produtos (Buques, Plantas, Vasos) |
+            | **Clientes** | Quem compra na loja, com o endereço de entrega |
+            | **Enderecos** | Endereços de entrega dos clientes |
+            | **Pedidos** | Compras dos clientes, com produtos e status |
+            | **Chaves de API** | Gerar e gerenciar chaves (só ADMIN) |
+            | **Rate limit** | Limites de uso de cada plano e quanto você já consumiu |
+
+            ### Dados que já vêm cadastrados
+            | Recurso | Registros |
+            |---|---|
+            | Categorias | `1` Buques · `2` Plantas · `3` Vasos |
+            | Produtos | `1` Buque de Rosas Vermelhas (R$ 89,90) · `2` Suculenta Echeveria (R$ 19,90) · `3` Vaso de Ceramica Branco (R$ 34,50) |
+            | Clientes | `1` Maria Silva (maria.silva@email.com, 11999990000) |
+            | Endereços | `1` Rua das Flores, 100, Centro, Sao Paulo/SP, CEP 01001000 |
+
+            ### Regras gerais
+            - JSON em **UTF-8**; mensagens de erro em português.
+            - Datas no formato ISO 8601 (ex.: `2026-11-17T14:30:00`) e valores em reais (ex.: `89.90`).
+            - Listagens são **paginadas**: `page` (começa em 0), `size` (itens por página) e `sort` (ex.: `nome,asc`).
+            - Respostas com **HATEOAS**: cada registro traz `_links` para navegar (ex.: `self`, `update`, `delete`).
+
+            ### Códigos de status
+            | Código | Quando acontece |
+            |---|---|
+            | **200** OK | Consulta ou alteração feita com sucesso |
+            | **201** Created | Registro criado (o header `Location` traz o endereço dele) |
+            | **204** No Content | Registro excluído ou logout feito (resposta sem corpo) |
+            | **400** Bad Request | JSON mal formado, parâmetro com tipo errado ou `X-Idempotency-Key` ausente |
+            | **401** Unauthorized | Sem chave de API, chave inválida, e-mail/senha incorretos ou sessão expirada |
+            | **403** Forbidden | A chave não tem o nível exigido pela operação |
+            | **404** Not Found | O registro procurado (id) não existe |
+            | **405** Method Not Allowed | O método HTTP não existe naquela rota |
+            | **409** Conflict | Conflito com dados existentes: e-mail repetido, id relacionado inexistente ou registro em uso |
+            | **415** Unsupported Media Type | O corpo não foi enviado como `application/json` |
+            | **422** Unprocessable Entity | Campos inválidos, filtro/ordenação inválidos ou `X-Idempotency-Key` reutilizada com outro corpo |
+            | **429** Too Many Requests | Limite de requisições excedido (veja o header `Retry-After`) |
+            | **500** Internal Server Error | Erro inesperado no servidor |
+
+            Todo erro tem o mesmo formato:
+            ```json
+            { "timestamp": "2026-11-17T14:30:00Z", "status": 404, "error": "Not Found", "message": "Categoria 99 nao encontrada" }
+            ```
+            Nos erros de validação (422) vem também `fieldErrors`, com o campo e o motivo.
+
+            ### Autenticação (X-API-Key)
+            - Clique em **Authorize** e informe a chave. Níveis: `LEITURA` < `ESCRITA` < `ADMIN`.
+            - GET de produtos, categorias e limites é **público**. GET dos demais exige LEITURA, POST/PUT exigem ESCRITA \
+            e DELETE exige ADMIN.
+            - **Gerenciar chaves:** aba **Chaves de API** (`/api-keys`), só com chave ADMIN: gerar (com nível e plano), \
+            listar, alterar nível/plano, ativar/desativar, rotacionar e excluir.
+
+            ### Conta e chave pessoal (X-Session-Token)
+            - O login devolve um `token` que vale **60 minutos**. No Swagger ele vai no **Authorize**, campo **LoginToken**.
+            - Cada pessoa tem **uma** chave pessoal (nível ESCRITA, plano BASICO): gerar em `POST /auth/minha-chave` \
+            e excluir em `DELETE /auth/minha-chave`.
+            - A senha é guardada só como **hash** (PBKDF2) e nunca volta nas respostas.
+
+            ### Idempotência (X-Idempotency-Key)
+            - Todo POST (fora da aba Conta e login) exige o header `X-Idempotency-Key`, por exemplo um UUID.
+            - Mesma chave + mesmo corpo: devolve a resposta original sem criar nada de novo \
+            (header `X-Idempotency-Replayed: true`).
+            - Mesma chave + corpo diferente: **422**. Sem o header: **400**. As chaves valem por 24 horas.
+
+            ### Rate limit (token bucket)
+            Cada cliente tem um *balde* de fichas: cada requisição gasta 1 ficha e o balde é reabastecido aos poucos. \
+            Sem chave o limite é por **IP**; com chave, pelo **plano** da chave.
+
+            | Quem | Capacidade (de uma vez) | Recarga |
+            |---|---|---|
+            | Sem chave (por IP) | 5 | 15 por minuto (1 a cada 4 s) |
+            | Plano GRATUITO | 8 | 20 por minuto (1 a cada 3 s) |
+            | Plano BASICO | 20 | 60 por minuto (1 por segundo) |
+            | Plano PROFISSIONAL | 50 | 240 por minuto (4 por segundo) |
+            | Global (API inteira) | 200 | 600 por minuto |
+
+            - As chaves de demonstração são do plano GRATUITO; as chaves pessoais, do BASICO.
+            - Toda resposta traz `X-RateLimit-Limit`, `X-RateLimit-Remaining`, `X-RateLimit-Reset` e `X-RateLimit-Policy`.
+            - Balde vazio: **429** com `Retry-After`. Insistir depois do 429 (5 negadas seguidas) bloqueia por **30 s**.
+            - `GET /limites` mostra essa política e quanto você já consumiu.
+
+            ### Versionamento (X-API-Version)
+            - Sem header = **versão 1**. Com `X-API-Version: 2`, `GET /produtos` e `GET /produtos/{id}` mudam de formato: \
+            trazem `precoFormatado` (ex.: "R$ 89,90"), `disponivel` e a categoria resumida, e a listagem ganha filtros \
+            combinados (`nome`, `categoriaId`, `precoMin`, `precoMax`, `disponivel`).
+            - Troque a versão no seletor **Select a definition**, no topo da página.
+
+            ### CORS
+            - O navegador só deixa um front-end de outro endereço ler as respostas se a API liberar. Liberados por padrão: \
+            Live Server (`:5500`), servidor do IntelliJ (`:63342`) e `http://localhost:8080`. Em produção a lista vem \
+            da variável de ambiente `LAVANDER_CORS_ORIGINS`.
+            - Métodos: `GET`, `POST`, `PUT`, `DELETE`, `OPTIONS`. Headers aceitos: `Content-Type`, `Accept`, `X-API-Key`, \
+            `X-API-Version`, `X-Idempotency-Key` e `X-Session-Token`.
+            - O Swagger não precisa de CORS, porque roda no mesmo endereço da API.
+
+            ### Termos de uso (resumo)
+            - Envie dados verdadeiros e respeite a privacidade (LGPD).
+            - Excesso de requisições, tentativas de invasão e conteúdo ilegal podem levar ao **bloqueio** do acesso.
+            - Prefira cancelar pedidos a apagá-los: exclusões não podem ser desfeitas.
+            """;
+
+    // descricao de cada aba (tag) do Swagger, com exemplos do que ela faz
+    private static final Map<String, String> ABAS = new java.util.LinkedHashMap<>();
+    static {
+        ABAS.put("Conta e login", """
+                Crie a sua conta e gere a sua **chave de API pessoal**. **Exemplos:** `POST /auth/cadastro` cria a conta; \
+                `POST /auth/login` devolve o `token` (cole no Authorize, campo **LoginToken**); \
+                `POST /auth/minha-chave` gera a chave `ll_...`; `DELETE /auth/minha-chave` exclui; \
+                `GET /auth/me` mostra os seus dados; `POST /auth/logout` encerra a sessão.""");
+        ABAS.put("Produtos", """
+                Catálogo da floricultura. **Exemplos:** `GET /produtos` lista tudo; `GET /produtos/1` traz o \
+                *Buque de Rosas Vermelhas*; `GET /produtos/search?precoMin=20&precoMax=100` filtra por preço; \
+                `POST /produtos` cadastra um produto novo numa categoria. Na **versão 2** (`X-API-Version: 2`) \
+                a resposta traz `precoFormatado` e `disponivel`, e a listagem aceita filtros combinados.""");
+        ABAS.put("Categorias", """
+                Grupos de produtos. **Exemplos:** `GET /categorias` lista *Buques*, *Plantas* e *Vasos*; \
+                `GET /categorias/search?nome=buq` busca pelo nome; `POST /categorias` cria uma categoria nova \
+                (o nome não pode repetir); `DELETE /categorias/3` só funciona se nenhum produto usar a categoria.""");
+        ABAS.put("Clientes", """
+                Quem compra na loja. São dados pessoais, então **todas as rotas exigem chave** (LEITURA para ver). \
+                **Exemplos:** `GET /clientes/1` traz a *Maria Silva*; `GET /clientes/search?nome=maria` busca pelo nome; \
+                `POST /clientes` cadastra um cliente já com o endereço (o e-mail não pode repetir).""");
+        ABAS.put("Enderecos", """
+                Endereços de entrega dos clientes. **Exemplos:** `GET /enderecos/1` traz *Rua das Flores, 100*; \
+                `GET /enderecos/search?cidade=Sao Paulo` busca pela cidade; `PUT /enderecos/1` corrige o endereço.""");
+        ABAS.put("Pedidos", """
+                Compras dos clientes. Status: `PENDENTE` → `PAGO` → `EM_PREPARACAO` → `ENVIADO` → `ENTREGUE` \
+                (ou `CANCELADO`). **Exemplos:** `POST /pedidos` com `clienteId: 1` e `produtoIds: [1, 2]` cria o pedido \
+                da Maria Silva; `GET /pedidos/search?status=PENDENTE` lista os pendentes; `PUT /pedidos/1` muda o status.""");
+        ABAS.put("Chaves de API", """
+                Gerenciamento das chaves do header `X-API-Key`, **só com chave ADMIN**. **Exemplos:** `POST /api-keys` \
+                gera uma chave com nível (`LEITURA`, `ESCRITA`, `ADMIN`) e plano (`GRATUITO`, `BASICO`, `PROFISSIONAL`); \
+                `GET /api-keys` lista (só o prefixo, nunca o valor); `PUT /api-keys/1` troca o plano ou desativa; \
+                `POST /api-keys/1/rotacionar` gera um valor novo; `DELETE /api-keys/1` exclui. \
+                `GET /api-keys/me` (qualquer nível) mostra a chave que você está usando.""");
+        ABAS.put("Rate limit", """
+                Limites de uso (token bucket). **Exemplo:** `GET /limites` (público) mostra a capacidade e a recarga de \
+                cada plano, o limite sem chave e o global, a penalidade e quantas fichas **você** ainda tem.""");
+    }
+
     @Bean
     public OpenAPI floriculturaOpenAPI() {
         return new OpenAPI()
@@ -66,75 +225,7 @@ public class OpenApiConfig {
                         .addSecuritySchemes(SESSAO_SCHEME, esquemaSessao()))
                 .info(new Info()
                         .title("Lavender Love")
-                        .description("API RESTful da Lavander Love, uma floricultura. Projeto final do curso de APIs com Spring Boot. "
-                                + "Representa o dia a dia de uma loja de flores: clientes, endereços, produtos, categorias e pedidos.\n\n"
-
-                                + "**Regras gerais**\n\n"
-                                + "- JSON em **UTF-8**; mensagens de erro em português (pt-BR).\n"
-                                + "- Datas no formato ISO 8601 e valores em reais (BRL).\n"
-                                + "- Erros: 400 requisição mal formada, 401 sem chave, 403 nível insuficiente, "
-                                + "404 não encontrado, 409 conflito, 422 validação, 429 limite excedido.\n\n"
-
-                                + "**Autenticação (X-API-Key)**\n\n"
-                                + "- Clique em **Authorize** e informe a chave. Níveis: `LEITURA` < `ESCRITA` < `ADMIN`.\n"
-                                + "- GET de produtos e categorias é público. GET dos demais exige LEITURA, "
-                                + "POST/PUT exigem ESCRITA, DELETE exige ADMIN.\n"
-                                + "- **Gerar e gerenciar chaves:** seção **Chaves de API** (`/api-keys`), só com chave ADMIN: "
-                                + "gerar (com nível e plano), listar, alterar nível/plano, ativar/desativar, rotacionar e revogar. "
-                                + "Sem ser ADMIN, essas rotas respondem 401/403.\n"
-                                + "- Cada pessoa também pode gerar a **própria** chave em **Conta e login**.\n\n"
-
-                                + "**Conta e chave pessoal**\n\n"
-                                + "- Não tem chave? Crie uma conta em `POST /auth/cadastro`, entre em `POST /auth/login` "
-                                + "(recebe um `token`) e gere a sua chave em `POST /auth/minha-chave` com o header "
-                                + "`X-Session-Token` (no Swagger: botão **Authorize**, campo **LoginToken**). Cada pessoa tem **uma** chave (nível ESCRITA, plano BASICO).\n\n"
-
-                                + "**Idempotência (X-Idempotency-Key)**\n\n"
-                                + "- Todo POST exige o header `X-Idempotency-Key` (ex.: um UUID). Repetir a mesma chave com o "
-                                + "mesmo corpo devolve a resposta original sem criar nada de novo (`X-Idempotency-Replayed: true`).\n\n"
-
-                                + "**Rate limit (token bucket)**\n\n"
-                                + "Cada cliente tem um *balde* de fichas: cada requisição gasta 1 ficha e o balde é "
-                                + "reabastecido aos poucos. Dá pra fazer uma rajada até o tamanho do balde; depois, "
-                                + "só no ritmo da recarga. Sem chave o limite é por **IP**; com chave, pelo **plano** da chave.\n\n"
-                                + "| Quem | Capacidade (de uma vez) | Recarga |\n"
-                                + "|---|---|---|\n"
-                                + "| Sem chave (por IP) | 5 | 15 por minuto (1 a cada 4 s) |\n"
-                                + "| Plano GRATUITO | 8 | 20 por minuto (1 a cada 3 s) |\n"
-                                + "| Plano BASICO | 20 | 60 por minuto (1 por segundo) |\n"
-                                + "| Plano PROFISSIONAL | 50 | 240 por minuto (4 por segundo) |\n"
-                                + "| Global (API inteira) | 200 | 600 por minuto |\n\n"
-                                + "- As chaves de demonstração são do plano GRATUITO.\n"
-                                + "- Toda resposta traz `X-RateLimit-Limit` (capacidade), `X-RateLimit-Remaining` (fichas restantes), "
-                                + "`X-RateLimit-Reset` (segundos até o balde encher) e `X-RateLimit-Policy` (plano e recarga).\n"
-                                + "- Balde vazio: **429 Too Many Requests** com `Retry-After` (segundos até a próxima ficha).\n"
-                                + "- **Penalidade:** continuar enviando depois do 429 (5 negadas seguidas) bloqueia o cliente por "
-                                + "**30 s**, mesmo que o balde recarregue. Abuso repetido pode levar à desativação da chave.\n"
-                                + "- `GET /limites` mostra essa política e quanto você já consumiu.\n\n"
-
-                                + "**Versionamento (X-API-Version)**\n\n"
-                                + "- Sem header = versão 1. `X-API-Version: 2` muda o formato de `GET /produtos` e "
-                                + "`GET /produtos/{id}`. Troque o grupo no topo da página para ver a documentação de cada versão.\n\n"
-
-                                + "**CORS**\n\n"
-                                + "- O navegador só deixa um front-end em outra origem ler as respostas da API se ela autorizar. "
-                                + "Origens liberadas: as de `lavander.cors.allowed-origins` (por padrão o Live Server, "
-                                + "`:5500`, o servidor do IntelliJ, `:63342`, e `http://localhost:8080`). Em produção, "
-                                + "a lista vem da variável de ambiente `LAVANDER_CORS_ORIGINS`.\n"
-                                + "- Métodos liberados: `GET`, `POST`, `PUT`, `DELETE` e `OPTIONS`.\n"
-                                + "- Headers aceitos: `Content-Type`, `Accept`, `X-API-Key`, `X-API-Version`, `X-Idempotency-Key` "
-                                + "e `X-Session-Token`.\n"
-                                + "- Headers que o front pode ler: `Location`, `X-API-Version`, `X-RateLimit-*`, `Retry-After`, "
-                                + "`X-Idempotency-Key` e `X-Idempotency-Replayed`.\n"
-                                + "- Qualquer outra origem é bloqueada pelo navegador. O Swagger não precisa de CORS, porque roda "
-                                + "no mesmo endereço da API.\n\n"
-
-                                + "**Termos de uso (resumo)**\n\n"
-                                + "- Envie dados verdadeiros e respeite a privacidade (LGPD).\n"
-                                + "- Evite excesso de requisições, tentativas de invasão e conteúdo ilegal: "
-                                + "o acesso pode ser **bloqueado**.\n"
-                                + "- Prefira cancelar pedidos a apagá-los: exclusões não podem ser desfeitas.\n"
-                                + "- Banco em memória: os dados são apagados ao reiniciar.")
+                        .description(DESCRICAO)
                         .version("2.1.1")
                         .termsOfService("https://github.com/mariajulia1303/lavander-love-Api#termos-de-servi%C3%A7o")
                         .contact(new Contact()
@@ -202,6 +293,7 @@ public class OpenApiConfig {
                 openApi.getComponents().addSecuritySchemes(SESSAO_SCHEME, esquemaSessao());
             }
             formatarSchemas(openApi);
+            descreverAbas(openApi);
             if (openApi.getPaths() == null) {
                 return;
             }
@@ -273,7 +365,9 @@ public class OpenApiConfig {
                     s.setMinLength(1);
                     s.setMaxLength(max);
                     if (p.getExample() == null) {
-                        p.setExample("cidade".equals(nome) ? "São Paulo" : "rosa");
+                        p.setExample("cidade".equals(nome) ? "Sao Paulo"
+                                : "categorias".equals(recurso) ? "Buques"
+                                : "clientes".equals(recurso) ? "Maria" : "rosa");
                     }
                     descrever(p, "cidade".equals(nome) ? "Nome da cidade (ou parte dele)."
                             : "Nome (ou parte dele). Não diferencia maiúsculas de minúsculas.",
@@ -330,7 +424,7 @@ public class OpenApiConfig {
             Map.entry("logradouro", "Rua das Flores"),
             Map.entry("numero", "100"),
             Map.entry("bairro", "Centro"),
-            Map.entry("cidade", "São Paulo"),
+            Map.entry("cidade", "Sao Paulo"),
             Map.entry("uf", "SP"),
             Map.entry("cep", "01001000"),
             Map.entry("preco", new java.math.BigDecimal("89.90")),
@@ -348,15 +442,31 @@ public class OpenApiConfig {
             Map.entry("ativa", true));
 
     // exemplo de campos com o mesmo nome em modelos diferentes (ex.: "nome")
-    private static final Map<String, Map<String, Object>> EXEMPLO_POR_MODELO = Map.of(
-            "Categoria", Map.of("nome", "Buquês", "descricao", "Buquês variados para qualquer ocasião"),
-            "CategoriaResumo", Map.of("nome", "Buquês"),
-            "Produto", Map.of("nome", "Buquê de Rosas Vermelhas"),
-            "ProdutoV2", Map.of("nome", "Buquê de Rosas Vermelhas"),
-            "Cliente", Map.of("nome", "Maria Silva"),
-            "Usuario", Map.of("nome", "Maria Julia", "email", "maria@teste.com"),
-            "ApiKey", Map.of("nome", "Front-end da loja"),
-            "ChaveResumo", Map.of("nome", "Maria Julia"));
+    private static final Map<String, Map<String, Object>> EXEMPLO_POR_MODELO = Map.ofEntries(
+            Map.entry("Categoria", ex("nome", "Buques", "descricao", "Buques variados pra qualquer ocasiao")),
+            Map.entry("CategoriaResumo", ex("nome", "Buques")),
+            Map.entry("Produto", ex("nome", "Buque de Rosas Vermelhas")),
+            Map.entry("ProdutoV2", ex("nome", "Buque de Rosas Vermelhas")),
+            Map.entry("Cliente", ex("nome", "Maria Silva")),
+            Map.entry("Usuario", ex("nome", "Maria Silva")),
+            Map.entry("ApiKey", ex("nome", "Chave inicial ADMIN", "prefixo", "ll_admin...")),
+            Map.entry("ApiKeyCriada", ex("nome", "Front-end da loja")),
+            Map.entry("ChaveResumo", ex("prefixo", "ll_3kq9X...")),
+            Map.entry("ApiError", ex("timestamp", "2026-11-17T14:30:00Z", "status", 404, "error", "Not Found",
+                    "message", "Categoria 99 nao encontrada")),
+            Map.entry("FieldErrorItem", ex("field", "nome", "message", "deve ter entre 2 e 60 caracteres")),
+            Map.entry("PageMetadata", ex("size", 20, "totalElements", 3, "totalPages", 1, "number", 0)),
+            Map.entry("Link", ex("href", "http://localhost:8080/produtos/1", "templated", false)),
+            Map.entry("Login", ex("token", "q3Z8kL0vN2xR7tY5wB1cD4eF6gH9jK3mP0sU2vX4zA8")));
+
+    // monta um Map<String, Object> a partir de pares chave, valor (deixa os tipos explicitos pro compilador)
+    private static Map<String, Object> ex(Object... chaveValor) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        for (int k = 0; k < chaveValor.length; k += 2) {
+            m.put((String) chaveValor[k], chaveValor[k + 1]);
+        }
+        return m;
+    }
 
     // recurso de cada modelo, pra montar o link de exemplo do _links
     private static final Map<String, String> RECURSO_DO_MODELO = Map.of(
@@ -385,7 +495,7 @@ public class OpenApiConfig {
     private void colocarExemplos(String nomeSchema, Map<String, Schema> campos) {
         String tipo = tipoDoModelo(nomeSchema);
         // cadastro e login ficam com os campos vazios de proposito
-        if (tipo.equals("Cadastro") || tipo.equals("Login")) {
+        if (nomeSchema.equals("CadastroRequest") || nomeSchema.equals("LoginRequest")) {
             return;
         }
         Map<String, Object> doModelo = EXEMPLO_POR_MODELO.getOrDefault(tipo, Map.of());
@@ -396,10 +506,13 @@ public class OpenApiConfig {
                 // links HATEOAS: mostra um "self" de verdade em vez de additionalProp1, 2, 3
                 String recurso = RECURSO_DO_MODELO.get(tipo);
                 String href = "http://localhost:8080/" + (recurso == null ? "" : recurso
-                        + (recurso.contains("/") || nomeSchema.startsWith("PagedModel") ? "" : "/1"));
-                campos.put(nome, new io.swagger.v3.oas.models.media.ObjectSchema()
-                        .description("Links para navegar pela API (HATEOAS)")
-                        .example(Map.of("self", Map.of("href", href))));
+                        + (recurso.contains("/") ? "" : nomeSchema.startsWith("PagedModel") ? "?page=0&size=20" : "/1"));
+                // Schema generico (o ObjectSchema transformaria o exemplo em texto)
+                Schema<Object> links = new Schema<>();
+                links.setType("object");
+                links.setDescription("Links para navegar pela API (HATEOAS)");
+                links.setExample(Map.of("self", Map.of("href", href)));
+                campos.put(nome, links);
                 continue;
             }
             if (campo == null || campo.get$ref() != null || campo.getExample() != null) {
@@ -491,7 +604,9 @@ public class OpenApiConfig {
             op.addSecurityItem(new SecurityRequirement().addList(SESSAO_SCHEME));
             acrescentarDescricao(op, "🔑 **Requer login:** clique em **Authorize** e cole o `token` recebido em "
                     + "`POST /auth/login` no campo **LoginToken (X-Session-Token)**.");
-            adicionarResposta(op, "401", "Token de login ausente, invalido ou expirado");
+            if (!path.endsWith("/logout")) {
+                adicionarResposta(op, "401", "Token de login ausente, invalido ou expirado");
+            }
         }
 
         // seguranca conforme a mesma politica usada no filtro
@@ -502,7 +617,9 @@ public class OpenApiConfig {
             op.addSecurityItem(new SecurityRequirement().addList(SECURITY_SCHEME));
             acrescentarDescricao(op, "🔒 **Requer `X-API-Key` com nivel " + nivel + " ou superior.**");
             adicionarResposta(op, "401", "Chave de API ausente, invalida ou desativada");
-            adicionarResposta(op, "403", "A chave nao tem nivel suficiente (exige " + nivel + ")");
+            if (nivel != NivelAcesso.LEITURA) {
+                adicionarResposta(op, "403", "A chave nao tem nivel suficiente (exige " + nivel + ")");
+            }
         } else {
             acrescentarDescricao(op, "🌐 Endpoint publico (nao precisa de chave).");
         }
@@ -531,6 +648,256 @@ public class OpenApiConfig {
         r429.addHeaderObject("X-RateLimit-Reset", new Header()
                 .description("Segundos ate o balde encher de novo").schema(new IntegerSchema()));
         op.getResponses().putIfAbsent("429", r429);
+
+        completarStatus(path, httpMethod, op);
+        padronizarRespostas(path, httpMethod, op, nivel, usaSessao);
+    }
+
+    // ------------------------------------------------------------------
+    // STATUS CODES: completa cada operacao com todos os codigos que ela pode devolver
+    // ------------------------------------------------------------------
+    private static final Map<String, String> NAO_ENCONTRADO = Map.of(
+            "produtos", "Produto 99 nao encontrado",
+            "categorias", "Categoria 99 nao encontrada",
+            "clientes", "Cliente 99 nao encontrado",
+            "enderecos", "Endereco 99 nao encontrado",
+            "pedidos", "Pedido 99 nao encontrado",
+            "api-keys", "Chave de API 99 nao encontrada");
+
+    // conflitos (409) reais de cada recurso: [descricao, mensagem de exemplo]
+    private static final Map<String, String[]> CONFLITO_CRIAR = Map.of(
+            "produtos", new String[] { "A categoria informada (categoriaId) nao existe", "Categoria 99 nao existe" },
+            "categorias", new String[] { "Ja existe uma categoria com este nome", "Violacao de integridade dos dados" },
+            "clientes", new String[] { "Ja existe um cliente com este e-mail",
+                    "Ja existe um cliente com o email 'maria.silva@email.com'" },
+            "pedidos", new String[] { "O cliente ou algum produto informado nao existe", "Cliente 99 nao existe" },
+            "auth", new String[] { "Ja existe uma conta com este e-mail", "Ja existe uma conta com este e-mail." });
+    private static final Map<String, String[]> CONFLITO_ALTERAR = Map.of(
+            "produtos", CONFLITO_CRIAR.get("produtos"),
+            "categorias", CONFLITO_CRIAR.get("categorias"),
+            "clientes", CONFLITO_CRIAR.get("clientes"),
+            "pedidos", CONFLITO_CRIAR.get("pedidos"),
+            "api-keys", new String[] { "Nao e possivel rebaixar ou desativar a ultima chave ADMIN ativa",
+                    "Nao e possivel rebaixar ou desativar a ultima chave ADMIN ativa" });
+    private static final Map<String, String[]> CONFLITO_EXCLUIR = Map.of(
+            "produtos", new String[] { "O produto faz parte de algum pedido", "Violacao de integridade dos dados" },
+            "categorias", new String[] { "Ainda existem produtos nesta categoria", "Violacao de integridade dos dados" },
+            "clientes", new String[] { "O cliente tem pedidos", "Violacao de integridade dos dados" },
+            "enderecos", new String[] { "O endereco esta em uso por um cliente", "Violacao de integridade dos dados" },
+            "api-keys", new String[] { "Nao e possivel excluir a propria chave em uso nem a ultima chave ADMIN ativa",
+                    "Nao e possivel revogar a propria chave que esta sendo usada na requisicao" });
+
+    // mensagem de quando o /search vem sem nenhum filtro (a mesma que os controllers devolvem)
+    private static final Map<String, String> SEM_FILTRO = Map.of(
+            "produtos", "Informe ao menos um filtro: categoriaId, precoMin+precoMax ou nome",
+            "pedidos", "Informe ao menos um filtro: status ou clienteId",
+            "api-keys", "Informe ao menos um filtro: nivel ou ativa");
+
+    // adiciona o codigo (se ainda nao existir) ja com o corpo de erro e a mensagem de exemplo
+    private void status(Operation op, String codigo, String descricao, String mensagem) {
+        ApiResponse r = op.getResponses().get(codigo);
+        if (r == null) {
+            r = new ApiResponse().description(descricao);
+            op.getResponses().addApiResponse(codigo, r);
+        }
+        if (!temExemplo(r)) {
+            r.setContent(conteudoErro(Integer.parseInt(codigo), mensagem));
+        }
+    }
+
+    private static boolean temExemplo(ApiResponse r) {
+        return r.getContent() != null && r.getContent().get("application/json") != null
+                && r.getContent().get("application/json").getExample() != null;
+    }
+
+    private static Content conteudoErro(int numero, String mensagem) {
+        return new Content().addMediaType("application/json",
+                new MediaType().schema(new Schema<>().$ref(REF_ERRO)).example(exemploErro(numero, mensagem)));
+    }
+
+    private void completarStatus(String path, PathItem.HttpMethod httpMethod, Operation op) {
+        String recurso = recursoDe(path);
+        boolean temId = path.contains("{id}");
+        boolean temCorpo = op.getRequestBody() != null;
+        boolean conta = "auth".equals(recurso);
+
+        switch (httpMethod) {
+            case GET -> {
+                if (temId) {
+                    status(op, "400", "O id informado nao e um numero", "Valor 'abc' invalido para o parametro 'id'.");
+                    status(op, "404", "Registro nao encontrado", NAO_ENCONTRADO.getOrDefault(recurso, "Recurso nao encontrado"));
+                } else if (!conta && !"limites".equals(recurso) && !path.endsWith("/me")) {
+                    status(op, "400", "Parametro com tipo invalido (ex.: texto onde era numero)",
+                            "Valor 'abc' invalido para o parametro 'page'.");
+                    String semFiltro = path.endsWith("/search") ? SEM_FILTRO.get(recurso) : null;
+                    status(op, "422", semFiltro != null
+                            ? "Nenhum filtro informado ou campo de ordenacao (sort) inexistente"
+                            : "Campo de ordenacao (sort) inexistente",
+                            semFiltro != null ? semFiltro
+                                    : "Campo de ordenacao invalido: 'preco2'. Use um campo real da entidade no formato "
+                                            + "'campo,direcao' (ex: nome,asc).");
+                }
+            }
+            case POST -> {
+                if (temCorpo) {
+                    status(op, "400", "JSON mal formado" + (conta ? "" : " ou header X-Idempotency-Key ausente"),
+                            conta ? "Corpo da requisicao invalido ou mal formado. Confira o JSON e os tipos dos campos."
+                                    : "Operacoes POST exigem o header X-Idempotency-Key (ex: um UUID gerado pelo cliente).");
+                    status(op, "415", "O corpo nao foi enviado como application/json", "Envie o corpo como application/json.");
+                    status(op, "422", "Campos invalidos (validacao)" + (conta ? "" : " ou X-Idempotency-Key reutilizada com outro corpo"),
+                            "Falha na validacao dos campos");
+                    String[] c = path.endsWith("/cadastro") ? CONFLITO_CRIAR.get("auth")
+                            : conta ? null : CONFLITO_CRIAR.get(recurso);
+                    if (c != null) {
+                        status(op, "409", c[0], c[1]);
+                    }
+                }
+                if (temId) {
+                    status(op, "404", "Registro nao encontrado", NAO_ENCONTRADO.getOrDefault(recurso, "Recurso nao encontrado"));
+                }
+                if (path.endsWith("/login")) {
+                    status(op, "401", "E-mail ou senha incorretos", "E-mail ou senha incorretos.");
+                }
+                if (path.endsWith("/minha-chave")) {
+                    status(op, "409", "Chave desativada por um administrador",
+                            "Sua chave foi desativada por um administrador e nao pode ser renovada.");
+                }
+            }
+            case PUT -> {
+                status(op, "400", "JSON mal formado ou id que nao e numero",
+                        "Corpo da requisicao invalido ou mal formado. Confira o JSON e os tipos dos campos.");
+                status(op, "404", "Registro nao encontrado", NAO_ENCONTRADO.getOrDefault(recurso, "Recurso nao encontrado"));
+                status(op, "415", "O corpo nao foi enviado como application/json", "Envie o corpo como application/json.");
+                status(op, "422", "Campos invalidos (validacao)", "Falha na validacao dos campos");
+                String[] c = CONFLITO_ALTERAR.get(recurso);
+                if (c != null) {
+                    status(op, "409", c[0], c[1]);
+                }
+            }
+            case DELETE -> {
+                if (temId) {
+                    status(op, "400", "O id informado nao e um numero", "Valor 'abc' invalido para o parametro 'id'.");
+                    status(op, "404", "Registro nao encontrado", NAO_ENCONTRADO.getOrDefault(recurso, "Recurso nao encontrado"));
+                }
+                if (path.endsWith("/minha-chave")) {
+                    status(op, "404", "A conta nao tem chave", "Voce ainda nao tem chave de API para excluir.");
+                }
+                String[] c = CONFLITO_EXCLUIR.get(recurso);
+                if (c != null) {
+                    status(op, "409", c[0], c[1]);
+                }
+            }
+            default -> {
+                // nada
+            }
+        }
+        status(op, "500", "Erro inesperado no servidor", "Erro interno no servidor");
+    }
+
+    // ------------------------------------------------------------------
+    // CORPO DAS RESPOSTAS: erros com o formato real (ApiError) + exemplo, sucesso como application/json
+    // ------------------------------------------------------------------
+    @SuppressWarnings("rawtypes")
+    private void padronizarRespostas(String path, PathItem.HttpMethod httpMethod, Operation op, NivelAcesso nivel,
+            boolean usaSessao) {
+        for (Map.Entry<String, ApiResponse> e : op.getResponses().entrySet()) {
+            String codigo = e.getKey();
+            ApiResponse resp = e.getValue();
+            int numero;
+            try {
+                numero = Integer.parseInt(codigo);
+            } catch (NumberFormatException ex) {
+                continue;
+            }
+            if (numero >= 400 && !temExemplo(resp)) {
+                String msg = switch (numero) {
+                        case 401 -> usaSessao
+                                ? "Sessao ausente ou expirada. Faca login de novo e envie o token no header X-Session-Token."
+                                : "Esta operacao exige uma chave de API. Envie o header X-API-Key (nivel minimo: "
+                                        + (nivel == null ? NivelAcesso.LEITURA : nivel) + ").";
+                        case 403 -> "Sua chave tem nivel " + (nivel == NivelAcesso.ADMIN ? "ESCRITA" : "LEITURA")
+                                + ", mas esta operacao exige nivel " + nivel + ".";
+                        case 429 -> "Limite de requisicoes excedido para Chave ll_admin... (plano GRATUITO: 8 de uma vez, "
+                                + "recarga de 20 por minuto). Tente novamente em 3s.";
+                        case 400 -> "Corpo da requisicao invalido ou mal formado. Confira o JSON e os tipos dos campos.";
+                        case 404 -> "Recurso nao encontrado";
+                        case 409 -> "Violacao de integridade dos dados";
+                        case 415 -> "Envie o corpo como application/json.";
+                        case 422 -> "Falha na validacao dos campos";
+                        default -> "Erro interno no servidor";
+                    };
+                resp.setContent(conteudoErro(numero, msg));
+                if (resp.getDescription() == null || resp.getDescription().isBlank()) {
+                    resp.setDescription(org.springframework.http.HttpStatus.valueOf(numero).getReasonPhrase());
+                }
+            } else if (resp.getContent() != null && resp.getContent().containsKey("*/*")) {
+                // "*/*" vira "application/json" (o formato que a API devolve de verdade)
+                Content novo = new Content();
+                resp.getContent().forEach((tipo, conteudo) -> novo.addMediaType("*/*".equals(tipo) ? "application/json" : tipo, conteudo));
+                resp.setContent(novo);
+            }
+            if (numero == 201 && (resp.getHeaders() == null || !resp.getHeaders().containsKey("Location"))) {
+                resp.addHeaderObject("Location", new Header()
+                        .description("Endereco do registro criado (ex.: http://localhost:8080/categorias/4)")
+                        .schema(new StringSchema()));
+            }
+        }
+        // ordena os codigos (200, 201, 204, 400, 401...) pra ficar facil de ler
+        ApiResponses ordenadas = new ApiResponses();
+        op.getResponses().entrySet().stream()
+                .sorted(Map.Entry.comparingByKey())
+                .forEach(e -> ordenadas.addApiResponse(e.getKey(), e.getValue()));
+        op.setResponses(ordenadas);
+    }
+
+    private static Map<String, Object> exemploErro(int status, String mensagem) {
+        Map<String, Object> m = new java.util.LinkedHashMap<>();
+        m.put("timestamp", "2026-11-17T14:30:00Z");
+        m.put("status", status);
+        m.put("error", org.springframework.http.HttpStatus.valueOf(status).getReasonPhrase());
+        m.put("message", mensagem);
+        if (status == 422 && "Falha na validacao dos campos".equals(mensagem)) {
+            m.put("fieldErrors", List.of(Map.of("field", "nome", "message", "deve ter entre 2 e 60 caracteres")));
+        }
+        return m;
+    }
+
+    // ------------------------------------------------------------------
+    // ABAS: descricao com exemplos e ordem fixa (Conta e login primeiro)
+    // ------------------------------------------------------------------
+    private void descreverAbas(OpenAPI openApi) {
+        List<String> ordem = new java.util.ArrayList<>(ABAS.keySet());
+        List<io.swagger.v3.oas.models.tags.Tag> tags = new java.util.ArrayList<>();
+        if (openApi.getTags() != null) {
+            tags.addAll(openApi.getTags());
+        }
+        // garante que toda aba conhecida exista na lista (com a descricao nova)
+        for (String nome : ordem) {
+            if (tags.stream().noneMatch(t -> nome.equals(t.getName()))) {
+                tags.add(new io.swagger.v3.oas.models.tags.Tag().name(nome));
+            }
+        }
+        for (io.swagger.v3.oas.models.tags.Tag t : tags) {
+            String d = ABAS.get(t.getName());
+            if (d != null) {
+                t.setDescription(d);
+            }
+        }
+        // so mantem as abas que tem rota neste grupo (v1/v2)
+        java.util.Set<String> usadas = new java.util.HashSet<>();
+        if (openApi.getPaths() != null) {
+            openApi.getPaths().values().forEach(item -> item.readOperations().forEach(o -> {
+                if (o.getTags() != null) {
+                    usadas.addAll(o.getTags());
+                }
+            }));
+        }
+        tags.removeIf(t -> !usadas.contains(t.getName()));
+        tags.sort(java.util.Comparator.comparingInt(t -> {
+            int i = ordem.indexOf(t.getName());
+            return i < 0 ? 99 : i;
+        }));
+        openApi.setTags(tags);
     }
 
     private static SecurityScheme esquemaSessao() {

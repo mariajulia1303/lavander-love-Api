@@ -17,6 +17,12 @@ O formato segue o [Keep a Changelog](https://keepachangelog.com/pt-BR/1.1.0/) e 
 - Swagger: todos os parâmetros (id, filtros, paginação e headers) ganharam descrição em português,
   exemplo e o limite escrito por extenso (ex.: "Texto de 1 a 100 caracteres", "Número inteiro, a partir de 1").
 - Swagger: os campos dos corpos mostram o limite de caracteres/valor na descrição.
+- Swagger: descrição geral reescrita (como testar em 5 passos, abas, dados já cadastrados, tabela com
+  todos os códigos de status, autenticação, conta, idempotência, rate limit, versionamento, CORS e termos).
+- Swagger: cada aba (Conta e login, Produtos, Categorias, Clientes, Enderecos, Pedidos, Chaves de API,
+  Rate limit) tem uma descrição com exemplos do que faz, em ordem fixa.
+- Swagger: cada rota lista todos os códigos que pode devolver (400, 401, 403, 404, 409, 415, 422, 429, 500),
+  cada um com o formato real do erro e a mensagem que a API devolve de verdade.
 - Swagger: as respostas e os corpos mostram exemplos reais (os mesmos do `data.sql`, ex.: "Buquês",
   "Buquê de Rosas Vermelhas", 89.90) no lugar de "string" e 0, e o `_links` mostra um link `self` de verdade.
 - Swagger: o botão **Authorize** ganhou o campo **LoginToken** (`X-Session-Token`). O token do login é
